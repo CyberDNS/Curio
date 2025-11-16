@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(chmod:*)",
+      "Bash(pip3 install:*)",
+      "Bash(cat:*)",
+      "Bash(tree:*)",
+      "Bash(npm run build:*)",
+      "Bash(alembic revision:*)",
+      "Bash(if [ -f .env ])",
+      "Bash(then source .env)",
+      "Bash(alembic upgrade:*)",
+      "Bash(else echo \"No .env file found, migration requires environment variables\")",
+      "Bash(fi)",
+      "Bash(if [ -f ../.env ])",
+      "Bash(then source ../.env)",
+      "Bash(elif [ -f ../.env ])",
+      "Bash(OPENAI_API_KEY=dummy SECRET_KEY=dummy OAUTH_CLIENT_ID=dummy OAUTH_CLIENT_SECRET=dummy OAUTH_SERVER_METADATA_URL=dummy OAUTH_REDIRECT_URI=dummy alembic upgrade:*)",
+      "Bash(OPENAI_API_KEY=dummy SECRET_KEY=dummy OAUTH_CLIENT_ID=dummy OAUTH_CLIENT_SECRET=dummy OAUTH_SERVER_METADATA_URL=dummy OAUTH_REDIRECT_URI=dummy alembic current:*)",
+      "Bash(psql:*)",
+      "Bash(python verify_migration.py:*)",
+      "Bash(OPENAI_API_KEY=dummy SECRET_KEY=dummy OAUTH_CLIENT_ID=dummy OAUTH_CLIENT_SECRET=dummy OAUTH_SERVER_METADATA_URL=dummy OAUTH_REDIRECT_URI=dummy alembic revision:*)",
+      "Bash(python:*)",
+      "Bash(OPENAI_API_KEY=test SECRET_KEY=test OAUTH_CLIENT_ID=test OAUTH_CLIENT_SECRET=test OAUTH_SERVER_METADATA_URL=test OAUTH_REDIRECT_URI=test python:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

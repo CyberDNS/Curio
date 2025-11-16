@@ -1,0 +1,115 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-newspaper-50 text-newspaper-900 font-sans;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-serif;
+  }
+}
+
+@layer components {
+  .article-content {
+    @apply prose prose-newspaper max-w-none;
+  }
+
+  .newspaper-border {
+    @apply border-newspaper-300;
+  }
+
+  .newspaper-heading {
+    @apply font-serif font-bold tracking-tight;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-newspaper-100;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-newspaper-400 rounded;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-newspaper-500;
+}
+
+/* Harry Potter-style newspaper image animation */
+@keyframes harryPotterFloat {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  25% {
+    transform: translateY(-8px) scale(1.01);
+  }
+  50% {
+    transform: translateY(0) scale(1);
+  }
+  75% {
+    transform: translateY(-4px) scale(1.005);
+  }
+}
+
+@keyframes harryPotterPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+@keyframes subtleShift {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1) rotate(0deg);
+  }
+  25% {
+    transform: translate(3px, -3px) scale(1.008) rotate(0.5deg);
+  }
+  50% {
+    transform: translate(0, 0) scale(1) rotate(0deg);
+  }
+  75% {
+    transform: translate(-3px, 3px) scale(1.006) rotate(-0.5deg);
+  }
+}
+
+@keyframes magicalSway {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(5px);
+  }
+}
+
+.harry-potter-image {
+  animation: harryPotterFloat 5s ease-in-out infinite,
+    harryPotterPulse 4s ease-in-out infinite,
+    subtleShift 7s ease-in-out infinite, magicalSway 6s ease-in-out infinite;
+  transition: transform 0.3s ease;
+  transform-origin: center center;
+}
+
+.harry-potter-image:hover {
+  animation-play-state: paused;
+  transform: scale(1.08);
+}
