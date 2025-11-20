@@ -5,6 +5,7 @@ import type { Article } from "../../types";
 import { getProxiedImageUrl, getRelatedArticles } from "../../services/api";
 import { useArticleActions } from "../../hooks/useArticleActions";
 import { useQuery } from "@tanstack/react-query";
+import RelatedArticlesDialog from "./RelatedArticlesDialog";
 
 interface NewspaperArticleCardProps {
   article: Article;
@@ -294,122 +295,13 @@ export default function NewspaperArticleCard({
       </div>
 
       {/* Related Articles Dialog */}
-      {showRelatedDialog && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-          onClick={() => setShowRelatedDialog(false)}
-        >
-          <div
-            className="bg-white max-w-2xl w-full max-h-[80vh] overflow-auto border-4 border-newspaper-900 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Dialog Header */}
-            <div className="sticky top-0 bg-white border-b-2 border-newspaper-900 p-4">
-              <div className="flex items-center justify-between">
-                <h3 className="newspaper-heading text-2xl">Related Articles</h3>
-                <button
-                  onClick={() => setShowRelatedDialog(false)}
-                  className="text-newspaper-600 hover:text-newspaper-900 text-2xl leading-none"
-                  aria-label="Close"
-                >
-                  ×
-                </button>
-              </div>
-              <p className="text-sm text-newspaper-600 mt-1">
-                These articles are similar or duplicate stories detected by our system
-              </p>
-            </div>
-
-            {/* Dialog Content */}
-            <div className="p-4">
-              {loadingRelated ? (
-                <div className="flex items-center justify-center py-8">
-                  <RefreshCw className="w-6 h-6 animate-spin text-newspaper-600" />
-                  <span className="ml-2 text-newspaper-600">
-                    Loading related articles...
-                  </span>
-                </div>
-              ) : relatedArticles.length === 0 ? (
-                <div className="text-center py-8 text-newspaper-600">
-                  No related articles found
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {relatedArticles.map((relatedArticle) => (
-                    <div
-                      key={relatedArticle.id}
-                      className="border border-newspaper-300 p-4 hover:bg-newspaper-50 transition-colors"
-                    >
-                      <h4
-                        className="newspaper-heading text-lg mb-2 cursor-pointer hover:text-newspaper-700"
-                        onClick={() => {
-                          handleArticleClick(relatedArticle);
-                          setShowRelatedDialog(false);
-                        }}
-                      >
-                        {relatedArticle.llm_title || relatedArticle.title}
-                      </h4>
-
-                      {/* Meta info */}
-                      <div className="flex items-center gap-2 text-xs text-newspaper-600 mb-2 flex-wrap">
-                        {relatedArticle.feed_source_title && (
-                          <span className="font-semibold text-newspaper-800">
-                            {relatedArticle.feed_source_title}
-                          </span>
-                        )}
-                        {relatedArticle.author && (
-                          <span className="font-semibold">
-                            {relatedArticle.author}
-                          </span>
-                        )}
-                        {relatedArticle.published_date && (
-                          <span>
-                            {formatDistanceToNow(
-                              new Date(relatedArticle.published_date),
-                              { addSuffix: true }
-                            )}
-                          </span>
-                        )}
-                        {relatedArticle.relevance_score >= 0.6 && (
-                          <span className="flex items-center gap-1 text-green-700">
-                            <BookmarkCheck className="w-3 h-3" />
-                            <span>Recommended</span>
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Summary */}
-                      {(relatedArticle.llm_summary ||
-                        relatedArticle.summary ||
-                        relatedArticle.description) && (
-                        <p className="text-sm text-newspaper-700 mb-2 line-clamp-3">
-                          {relatedArticle.llm_summary ||
-                            relatedArticle.summary ||
-                            relatedArticle.description}
-                        </p>
-                      )}
-
-                      {/* Actions */}
-                      <div className="flex items-center gap-3">
-                        <button
-                          onClick={() => {
-                            handleArticleClick(relatedArticle);
-                            setShowRelatedDialog(false);
-                          }}
-                          className="inline-flex items-center gap-1 text-xs font-semibold text-newspaper-900 hover:text-newspaper-700 transition-colors"
-                        >
-                          Read Article
-                          <ExternalLink className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <RelatedArticlesDialog
+        isOpen={showRelatedDialog}
+        onClose={() => setShowRelatedDialog(false)}
+        relatedArticles={relatedArticles}
+        isLoading={loadingRelated}
+        onArticleClick={handleArticleClick}
+      />
     </article>
   );
 }

@@ -18,6 +18,7 @@ import {
   Copy,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import RelatedArticlesDialog from "../components/Articles/RelatedArticlesDialog";
 
 type FilterType =
   | "all"
@@ -369,29 +370,19 @@ export default function AllArticlesPage() {
                   className="border-b border-newspaper-200 hover:bg-newspaper-50"
                 >
                   <td className="p-3">
-                    <div className="flex items-start gap-2">
-                      <div className="flex-1">
-                        <div className="font-semibold text-sm">
-                          {article.llm_title || article.title}
-                        </div>
-                        {article.feed_source_title && (
-                          <div className="text-xs text-newspaper-800 font-semibold mt-1">
-                            {article.feed_source_title}
-                          </div>
-                        )}
-                        {article.summary && (
-                          <div className="text-xs text-newspaper-600 mt-1 line-clamp-2">
-                            {article.summary}
-                          </div>
-                        )}
-                      </div>
-                      {article.is_duplicate && (
-                        <span className="inline-flex items-center px-2 py-1 text-xs font-semibold bg-purple-100 text-purple-800 rounded">
-                          <Copy className="w-3 h-3 mr-1" />
-                          Duplicate
-                        </span>
-                      )}
+                    <div className="font-semibold text-sm">
+                      {article.llm_title || article.title}
                     </div>
+                    {article.feed_source_title && (
+                      <div className="text-xs text-newspaper-800 font-semibold mt-1">
+                        {article.feed_source_title}
+                      </div>
+                    )}
+                    {article.summary && (
+                      <div className="text-xs text-newspaper-600 mt-1 line-clamp-2">
+                        {article.summary}
+                      </div>
+                    )}
                   </td>
                   <td className="p-3">
                     {categoryName ? (
@@ -562,12 +553,6 @@ export default function AllArticlesPage() {
                       Recommended
                     </span>
                   )}
-                  {article.is_duplicate && (
-                    <span className="inline-flex items-center gap-1 text-xs text-purple-700">
-                      <Copy className="w-3 h-3" />
-                      Duplicate
-                    </span>
-                  )}
                 </div>
 
                 {/* Score and Published */}
@@ -670,109 +655,17 @@ export default function AllArticlesPage() {
       )}
 
       {/* Related Articles Dialog */}
-      {showRelatedDialog && selectedArticleId && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-          onClick={() => {
-            setShowRelatedDialog(false);
-            setSelectedArticleId(null);
-          }}
-        >
-          <div
-            className="bg-white max-w-2xl w-full max-h-[80vh] overflow-auto border-4 border-newspaper-900 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Dialog Header */}
-            <div className="sticky top-0 bg-white border-b-2 border-newspaper-900 p-4">
-              <div className="flex items-center justify-between">
-                <h3 className="newspaper-heading text-2xl">Related Articles</h3>
-                <button
-                  onClick={() => {
-                    setShowRelatedDialog(false);
-                    setSelectedArticleId(null);
-                  }}
-                  className="text-newspaper-600 hover:text-newspaper-900 text-2xl leading-none"
-                  aria-label="Close"
-                >
-                  ×
-                </button>
-              </div>
-              <p className="text-sm text-newspaper-600 mt-1">
-                These articles are similar or duplicate stories detected by our
-                system
-              </p>
-            </div>
-
-            {/* Dialog Content */}
-            <div className="p-4">
-              {loadingRelated ? (
-                <div className="flex items-center justify-center py-8">
-                  <RefreshCw className="w-6 h-6 animate-spin text-newspaper-600" />
-                  <span className="ml-2 text-newspaper-600">
-                    Loading related articles...
-                  </span>
-                </div>
-              ) : relatedArticles.length === 0 ? (
-                <div className="text-center py-8 text-newspaper-600">
-                  No related articles found
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {relatedArticles.map((relatedArticle) => (
-                    <div
-                      key={relatedArticle.id}
-                      className="border border-newspaper-300 p-4 hover:bg-newspaper-50 transition-colors"
-                    >
-                      <a
-                        href={relatedArticle.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="newspaper-heading text-lg mb-2 hover:text-newspaper-700 block"
-                      >
-                        {relatedArticle.llm_title || relatedArticle.title}
-                      </a>
-
-                      {/* Meta info */}
-                      <div className="flex items-center gap-2 text-xs text-newspaper-600 mb-2 flex-wrap">
-                        {relatedArticle.feed_source_title && (
-                          <span className="font-semibold text-newspaper-800">
-                            {relatedArticle.feed_source_title}
-                          </span>
-                        )}
-                        {relatedArticle.author && (
-                          <span className="font-semibold">
-                            {relatedArticle.author}
-                          </span>
-                        )}
-                        {relatedArticle.published_date && (
-                          <span>
-                            {formatDistanceToNow(
-                              new Date(relatedArticle.published_date),
-                              { addSuffix: true }
-                            )}
-                          </span>
-                        )}
-                        {getCategoryName(relatedArticle.category_id) && (
-                          <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded">
-                            {getCategoryName(relatedArticle.category_id)}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Summary */}
-                      {relatedArticle.llm_summary && (
-                        <p className="text-sm text-newspaper-700 line-clamp-3">
-                          {relatedArticle.llm_summary}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <RelatedArticlesDialog
+        isOpen={showRelatedDialog && selectedArticleId !== null}
+        onClose={() => {
+          setShowRelatedDialog(false);
+          setSelectedArticleId(null);
+        }}
+        relatedArticles={relatedArticles}
+        isLoading={loadingRelated}
+        onArticleClick={(article) => window.open(article.link, "_blank")}
+        getCategoryName={getCategoryName}
+      />
     </div>
   );
 }
