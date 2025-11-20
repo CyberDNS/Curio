@@ -247,3 +247,89 @@ def mark_all_read(
     count = query.update({"is_read": True})
     db.commit()
     return {"message": f"Marked {count} articles as read"}
+
+
+@router.post("/{article_id}/downvote")
+def downvote_article(
+    article_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Downvote an article to indicate "less like this".
+
+    Future articles similar to downvoted content will receive lower relevance scores.
+    Downvotes can be toggled (downvote again to remove).
+    """
+    article = (
+        db.query(Article)
+        .filter(Article.id == article_id, Article.user_id == current_user.id)
+        .first()
+    )
+    if not article:
+        raise HTTPException(status_code=404, detail="Article not found")
+
+    # Toggle downvote
+    if article.user_vote == -1:
+        # Remove downvote
+        article.user_vote = 0
+        article.vote_updated_at = None
+        message = "Downvote removed"
+    else:
+        # Apply downvote
+        article.user_vote = -1
+        article.vote_updated_at = datetime.utcnow()
+        message = "Article downvoted"
+
+    db.commit()
+
+    # Rebuild prototypes in background (only if we now have downvotes)
+    if article.user_vote == -1:
+        from app.services.downvote_handler import DownvoteHandler
+
+        handler = DownvoteHandler(db, current_user.id)
+        prototype_count = handler.rebuild_prototypes()
+        message += f" ({prototype_count} total downvotes)"
+
+    return {"message": message, "user_vote": article.user_vote}
+
+
+@router.get("/{article_id}/explain-adjustment")
+async def explain_score_adjustment(
+    article_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Get a human-readable explanation of why an article's score was adjusted.
+
+    Uses LLM to generate natural language explanation comparing the article
+    to similar downvoted content.
+    """
+    article = (
+        db.query(Article)
+        .filter(Article.id == article_id, Article.user_id == current_user.id)
+        .first()
+    )
+    if not article:
+        raise HTTPException(status_code=404, detail="Article not found")
+
+    if not article.score_adjustment_reason:
+        return {
+            "explanation": "No score adjustment was applied to this article.",
+            "has_adjustment": False,
+        }
+
+    # Generate detailed explanation using LLM
+    from app.services.downvote_handler import DownvoteHandler
+
+    handler = DownvoteHandler(db, current_user.id)
+    explanation = await handler.explain_adjustment(article)
+
+    return {
+        "explanation": explanation,
+        "has_adjustment": True,
+        "original_score": article.relevance_score,
+        "adjusted_score": article.adjusted_relevance_score,
+        "brief_reason": article.score_adjustment_reason,
+    }

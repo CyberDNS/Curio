@@ -42,6 +42,14 @@ class Article(ArticleBase):
     relevance_score: float = 0.0  # >= 0.6 means "recommended"
     tags: Optional[List[str]] = None
 
+    # User feedback and score adjustment
+    user_vote: int = 0  # 0 = neutral, -1 = downvote
+    vote_updated_at: Optional[datetime] = None
+    adjusted_relevance_score: Optional[float] = (
+        None  # Final score after downvote adjustment
+    )
+    score_adjustment_reason: Optional[str] = None  # Brief explanation for UI
+
     # Newspaper tracking
     newspaper_appearances: Optional[Dict[str, str]] = {}  # {date: section}
 
@@ -51,6 +59,7 @@ class Article(ArticleBase):
     # Duplicate detection
     is_duplicate: bool = False
     duplicate_of_id: Optional[int] = None
+    title_embedding: Optional[str] = None  # JSON string of embedding vector
 
     # Metadata
     is_read: bool = False  # False = "NEW" article, True = read

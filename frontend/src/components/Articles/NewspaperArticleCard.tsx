@@ -1,10 +1,22 @@
 import { useState, useEffect, useRef } from "react";
 import { formatDistanceToNow } from "date-fns";
-import { ExternalLink, BookmarkCheck, RefreshCw, Copy } from "lucide-react";
+import {
+  ExternalLink,
+  BookmarkCheck,
+  RefreshCw,
+  Copy,
+  ThumbsDown,
+  Info,
+} from "lucide-react";
 import type { Article } from "../../types";
-import { getProxiedImageUrl, getRelatedArticles } from "../../services/api";
+import {
+  getProxiedImageUrl,
+  getRelatedArticles,
+  downvoteArticle,
+  explainScoreAdjustment,
+} from "../../services/api";
 import { useArticleActions } from "../../hooks/useArticleActions";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import RelatedArticlesDialog from "./RelatedArticlesDialog";
 
 interface NewspaperArticleCardProps {
@@ -18,6 +30,9 @@ export default function NewspaperArticleCard({
 }: NewspaperArticleCardProps) {
   const [imageError, setImageError] = useState(false);
   const [showRelatedDialog, setShowRelatedDialog] = useState(false);
+  const [showExplanation, setShowExplanation] = useState(false);
+  const [explanation, setExplanation] = useState<string>("");
+  const [loadingExplanation, setLoadingExplanation] = useState(false);
   // Start at random index to avoid all images showing the same one initially
   const [currentImageIndex, setCurrentImageIndex] = useState(() =>
     Math.floor(Math.random() * (article.image_urls?.length || 1))
@@ -25,11 +40,21 @@ export default function NewspaperArticleCard({
   const articleRef = useRef<HTMLElement | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const queryClient = useQueryClient();
+
   // Fetch related articles when dialog is opened
   const { data: relatedArticles = [], isLoading: loadingRelated } = useQuery({
     queryKey: ["relatedArticles", article.id],
     queryFn: () => getRelatedArticles(article.id),
     enabled: showRelatedDialog,
+  });
+
+  const downvoteMutation = useMutation({
+    mutationFn: () => downvoteArticle(article.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["articles"] });
+      queryClient.invalidateQueries({ queryKey: ["newspaper"] });
+    },
   });
 
   const {
@@ -42,6 +67,38 @@ export default function NewspaperArticleCard({
   const handleClick = () => handleArticleClick(article);
   const handleReprocess = (e: React.MouseEvent) =>
     handleArticleReprocess(e, article.id);
+
+  const handleDownvote = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (
+      confirm(
+        article.user_vote === -1
+          ? "Remove downvote from this article?"
+          : "Downvote this article? Future similar articles will be scored lower."
+      )
+    ) {
+      downvoteMutation.mutate();
+    }
+  };
+
+  const handleExplain = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!showExplanation && !explanation) {
+      setLoadingExplanation(true);
+      try {
+        const result = await explainScoreAdjustment(article.id);
+        setExplanation(result.explanation);
+        setShowExplanation(true);
+      } catch (error) {
+        console.error("Failed to load explanation:", error);
+        setExplanation("Failed to load explanation. Please try again.");
+      } finally {
+        setLoadingExplanation(false);
+      }
+    } else {
+      setShowExplanation(!showExplanation);
+    }
+  };
 
   const publishedDate = article.published_date
     ? formatDistanceToNow(new Date(article.published_date), { addSuffix: true })
@@ -245,12 +302,61 @@ export default function NewspaperArticleCard({
                 )}
               </span>
             )}
+            {article.relevance_score > 0 &&
+              (() => {
+                const hasAdjustment =
+                  article.adjusted_relevance_score !== null &&
+                  article.adjusted_relevance_score !== article.relevance_score;
+                const displayScore = hasAdjustment
+                  ? article.adjusted_relevance_score!
+                  : article.relevance_score;
+                return (
+                  <span className="flex items-center gap-1">
+                    {hasAdjustment ? (
+                      <>
+                        <span className="text-gray-400 line-through text-xs">
+                          {(article.relevance_score * 100).toFixed(0)}%
+                        </span>
+                        <span className="font-semibold text-orange-600 text-xs">
+                          {(displayScore * 100).toFixed(0)}%
+                        </span>
+                        <button
+                          onClick={handleExplain}
+                          className="text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                          title="Explain adjustment"
+                          disabled={loadingExplanation}
+                        >
+                          {loadingExplanation ? (
+                            "..."
+                          ) : (
+                            <Info className="w-3 h-3" />
+                          )}
+                        </button>
+                      </>
+                    ) : (
+                      <span className="text-xs text-newspaper-600">
+                        Score: {(displayScore * 100).toFixed(0)}%
+                      </span>
+                    )}
+                  </span>
+                );
+              })()}
           </div>
 
           {/* Summary */}
           <p className={`${styles.summary} text-newspaper-700 flex-1`}>
             {displaySummary}
           </p>
+
+          {/* Explanation */}
+          {showExplanation && explanation && (
+            <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded text-sm">
+              <p className="font-semibold text-blue-900 mb-1">
+                Why was the score adjusted?
+              </p>
+              <p className="text-blue-800">{explanation}</p>
+            </div>
+          )}
 
           {/* Actions */}
           <div className="flex items-center gap-3 mt-auto pt-2">
@@ -260,6 +366,28 @@ export default function NewspaperArticleCard({
             >
               Read More
               <ExternalLink className="w-3 h-3" />
+            </button>
+            <button
+              onClick={handleDownvote}
+              disabled={downvoteMutation.isPending}
+              className={`inline-flex items-center gap-1 ${
+                styles.meta
+              } transition-colors disabled:opacity-50 ${
+                article.user_vote === -1
+                  ? "text-red-600 hover:text-red-800"
+                  : "text-gray-600 hover:text-gray-800"
+              }`}
+              title={
+                article.user_vote === -1
+                  ? "Remove downvote"
+                  : "Downvote (less like this)"
+              }
+            >
+              <ThumbsDown
+                className={`w-3 h-3 ${
+                  article.user_vote === -1 ? "fill-current" : ""
+                }`}
+              />
             </button>
             <button
               onClick={handleReprocess}

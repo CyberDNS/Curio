@@ -54,8 +54,30 @@ export const markAllRead = async (category_id?: number): Promise<void> => {
   await api.post("/articles/mark-all-read", null, { params: { category_id } });
 };
 
-export const getRelatedArticles = async (articleId: number): Promise<Article[]> => {
+export const getRelatedArticles = async (
+  articleId: number
+): Promise<Article[]> => {
   const { data } = await api.get(`/articles/${articleId}/related`);
+  return data;
+};
+
+export const downvoteArticle = async (
+  articleId: number
+): Promise<{ message: string; user_vote: number }> => {
+  const { data } = await api.post(`/articles/${articleId}/downvote`);
+  return data;
+};
+
+export const explainScoreAdjustment = async (
+  articleId: number
+): Promise<{
+  explanation: string;
+  has_adjustment: boolean;
+  original_score?: number;
+  adjusted_score?: number;
+  brief_reason?: string;
+}> => {
+  const { data } = await api.get(`/articles/${articleId}/explain-adjustment`);
   return data;
 };
 
@@ -168,7 +190,7 @@ export const getTodayNewspaper = async (): Promise<Newspaper> => {
 };
 
 export const getNewspaperByDate = async (date: string): Promise<Newspaper> => {
-  const { data} = await api.get(`/newspapers/date/${date}`);
+  const { data } = await api.get(`/newspapers/date/${date}`);
   return data;
 };
 

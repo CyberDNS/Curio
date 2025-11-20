@@ -7,6 +7,7 @@ from app.models.category import Category
 from app.models.settings import UserSettings
 from app.core.config import settings
 from app.services.duplicate_detector import DuplicateDetector
+from app.services.downvote_handler import DownvoteHandler
 from slugify import slugify
 import logging
 import json
@@ -56,13 +57,15 @@ class LLMProcessor:
 
         existing_categories = query_categories.all()
 
-        # Get unprocessed articles from last 24 hours only
+        # Get unprocessed articles from last 24 hours only (unless specific IDs requested)
         days_back = 1
         date_threshold = datetime.utcnow() - timedelta(days=days_back)
 
-        query = self.db.query(Article).filter(
-            Article.summary == None, Article.created_at >= date_threshold
-        )
+        query = self.db.query(Article).filter(Article.summary == None)
+        
+        # Only apply date filter if not processing specific article IDs
+        if not article_ids:
+            query = query.filter(Article.created_at >= date_threshold)
 
         if article_ids:
             query = query.filter(Article.id.in_(article_ids))
@@ -75,9 +78,7 @@ class LLMProcessor:
             logger.info("No articles to process (within 24-hour window)")
             return 0
 
-        logger.info(
-            f"Processing {len(articles)} articles from last {days_back} day(s)"
-        )
+        logger.info(f"Processing {len(articles)} articles from last {days_back} day(s)")
 
         processed = 0
         for article in articles:
@@ -119,6 +120,18 @@ class LLMProcessor:
                     logger.info(
                         f"Article {article.id} marked as duplicate of {original.id}"
                     )
+
+                # Apply downvote-based score adjustment
+                downvote_handler = DownvoteHandler(self.db, article.user_id)
+                penalty_applied = downvote_handler.apply_downvote_penalty(article)
+                if penalty_applied:
+                    logger.info(
+                        f"Article {article.id}: Score adjusted from {article.relevance_score:.2f} "
+                        f"to {article.adjusted_relevance_score:.2f} due to downvoted similarity"
+                    )
+
+                # Commit downvote adjustments
+                self.db.commit()
 
                 processed += 1
                 logger.info(
@@ -183,7 +196,10 @@ Analyze this article and provide your assessment."""
             }
 
     async def _analyze_article_comprehensive(
-        self, article: Article, selection_prompt: str, existing_categories: List[Category]
+        self,
+        article: Article,
+        selection_prompt: str,
+        existing_categories: List[Category],
     ) -> Dict:
         """
         Comprehensive LLM analysis with category assignment and content enhancement.
@@ -201,9 +217,7 @@ Analyze this article and provide your assessment."""
             for cat in existing_categories:
                 desc = f" - {cat.description}" if cat.description else ""
                 category_list.append(f'  - "{cat.name}" (ID: {cat.id}){desc}')
-            category_context = (
-                "\n\nAvailable Categories:\n" + "\n".join(category_list)
-            )
+            category_context = "\n\nAvailable Categories:\n" + "\n".join(category_list)
         else:
             category_context = (
                 "\n\nNo categories defined yet. Return null for category_id."

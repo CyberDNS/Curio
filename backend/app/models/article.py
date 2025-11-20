@@ -41,6 +41,14 @@ class Article(Base):
     summary = Column(Text)  # Kept for backward compatibility
     relevance_score = Column(Float, default=0.0)  # >= 0.6 means "recommended"
 
+    # User feedback and score adjustment
+    user_vote = Column(Integer, default=0)  # 0 = neutral, -1 = downvote
+    vote_updated_at = Column(DateTime, nullable=True)
+    adjusted_relevance_score = Column(
+        Float, nullable=True
+    )  # Final score after downvote adjustment
+    score_adjustment_reason = Column(Text, nullable=True)  # Brief explanation for UI
+
     # Duplicate detection
     is_duplicate = Column(Boolean, default=False)  # True if article is a duplicate
     duplicate_of_id = Column(
