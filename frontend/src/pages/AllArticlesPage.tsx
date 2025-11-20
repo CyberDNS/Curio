@@ -51,9 +51,9 @@ export default function AllArticlesPage() {
   const [loadingExplanations, setLoadingExplanations] = useState<Set<number>>(
     new Set()
   );
-  const [selectedForComparison, setSelectedForComparison] = useState<Set<number>>(
-    new Set()
-  );
+  const [selectedForComparison, setSelectedForComparison] = useState<
+    Set<number>
+  >(new Set());
   const [showCompareDialog, setShowCompareDialog] = useState(false);
   const pageSize = 50;
 
@@ -164,7 +164,7 @@ export default function AllArticlesPage() {
         [articleId]: "Failed to load explanation. Please try again.",
       }));
     } finally {
-      setLoadingExplanations(prev => {
+      setLoadingExplanations((prev) => {
         const next = new Set(prev);
         next.delete(articleId);
         return next;
@@ -173,7 +173,7 @@ export default function AllArticlesPage() {
   };
 
   const toggleArticleSelection = (articleId: number) => {
-    setSelectedForComparison(prev => {
+    setSelectedForComparison((prev) => {
       const next = new Set(prev);
       if (next.has(articleId)) {
         next.delete(articleId);
@@ -195,7 +195,7 @@ export default function AllArticlesPage() {
   };
 
   const getComparisonArticles = () => {
-    return allArticles.filter(a => selectedForComparison.has(a.id));
+    return allArticles.filter((a) => selectedForComparison.has(a.id));
   };
 
   const cosineSimilarity = (emb1: number[], emb2: number[]): number => {
@@ -467,10 +467,15 @@ export default function AllArticlesPage() {
               <th className="text-left p-3 text-sm font-semibold w-12">
                 <input
                   type="checkbox"
-                  checked={selectedForComparison.size === paginatedArticles.length && paginatedArticles.length > 0}
+                  checked={
+                    selectedForComparison.size === paginatedArticles.length &&
+                    paginatedArticles.length > 0
+                  }
                   onChange={(e) => {
                     if (e.target.checked) {
-                      setSelectedForComparison(new Set(paginatedArticles.map(a => a.id)));
+                      setSelectedForComparison(
+                        new Set(paginatedArticles.map((a) => a.id))
+                      );
                     } else {
                       clearSelection();
                     }
@@ -978,11 +983,17 @@ export default function AllArticlesPage() {
               {/* Comparison Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {getComparisonArticles().map((article) => {
-                  const hasAdjustment = article.adjusted_relevance_score !== null && 
-                                      article.adjusted_relevance_score !== article.relevance_score;
-                  const displayScore = hasAdjustment ? article.adjusted_relevance_score! : article.relevance_score;
-                  const embedding = article.title_embedding ? JSON.parse(article.title_embedding) : null;
-                  
+                  const hasAdjustment =
+                    article.adjusted_relevance_score !== null &&
+                    article.adjusted_relevance_score !==
+                      article.relevance_score;
+                  const displayScore = hasAdjustment
+                    ? article.adjusted_relevance_score!
+                    : article.relevance_score;
+                  const embedding = article.title_embedding
+                    ? JSON.parse(article.title_embedding)
+                    : null;
+
                   return (
                     <div
                       key={article.id}
@@ -994,7 +1005,8 @@ export default function AllArticlesPage() {
 
                       <div className="space-y-2 text-sm">
                         <div>
-                          <span className="font-semibold">ID:</span> {article.id}
+                          <span className="font-semibold">ID:</span>{" "}
+                          {article.id}
                         </div>
                         <div>
                           <span className="font-semibold">Source:</span>{" "}
@@ -1006,13 +1018,19 @@ export default function AllArticlesPage() {
                         </div>
                         <div>
                           <span className="font-semibold">Original Score:</span>{" "}
-                          <span className={hasAdjustment ? "line-through text-gray-400" : ""}>
+                          <span
+                            className={
+                              hasAdjustment ? "line-through text-gray-400" : ""
+                            }
+                          >
                             {article.relevance_score?.toFixed(3) || "N/A"}
                           </span>
                         </div>
                         {hasAdjustment && (
                           <div>
-                            <span className="font-semibold">Adjusted Score:</span>{" "}
+                            <span className="font-semibold">
+                              Adjusted Score:
+                            </span>{" "}
                             <span className="text-orange-600 font-semibold">
                               {displayScore?.toFixed(3)}
                             </span>
@@ -1021,7 +1039,9 @@ export default function AllArticlesPage() {
                         <div>
                           <span className="font-semibold">User Vote:</span>{" "}
                           {article.user_vote === -1 ? (
-                            <span className="text-red-600 font-semibold">Downvoted</span>
+                            <span className="text-red-600 font-semibold">
+                              Downvoted
+                            </span>
                           ) : (
                             <span className="text-gray-500">Neutral</span>
                           )}
@@ -1036,7 +1056,9 @@ export default function AllArticlesPage() {
                         </div>
                         {article.score_adjustment_reason && (
                           <div className="mt-2 pt-2 border-t border-newspaper-300">
-                            <span className="font-semibold">Adjustment Reason:</span>
+                            <span className="font-semibold">
+                              Adjustment Reason:
+                            </span>
                             <p className="text-xs mt-1 text-newspaper-600">
                               {article.score_adjustment_reason}
                             </p>
@@ -1059,7 +1081,7 @@ export default function AllArticlesPage() {
               </div>
 
               {/* Similarity Matrix */}
-              {getComparisonArticles().every(a => a.title_embedding) && (
+              {getComparisonArticles().every((a) => a.title_embedding) && (
                 <div className="mt-6 border-t-2 border-newspaper-900 pt-6">
                   <h3 className="newspaper-heading text-xl mb-4">
                     Embedding Similarity Matrix
@@ -1090,11 +1112,15 @@ export default function AllArticlesPage() {
                                 #{article1.id}
                               </td>
                               {getComparisonArticles().map((article2) => {
-                                const emb2 = JSON.parse(article2.title_embedding!);
+                                const emb2 = JSON.parse(
+                                  article2.title_embedding!
+                                );
                                 const similarity = cosineSimilarity(emb1, emb2);
-                                const isHigh = similarity > 0.8 && article1.id !== article2.id;
+                                const isHigh =
+                                  similarity > 0.8 &&
+                                  article1.id !== article2.id;
                                 const isSelf = article1.id === article2.id;
-                                
+
                                 return (
                                   <td
                                     key={article2.id}

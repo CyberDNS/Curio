@@ -62,7 +62,7 @@ class LLMProcessor:
         date_threshold = datetime.utcnow() - timedelta(days=days_back)
 
         query = self.db.query(Article).filter(Article.summary == None)
-        
+
         # Only apply date filter if not processing specific article IDs
         if not article_ids:
             query = query.filter(Article.created_at >= date_threshold)
