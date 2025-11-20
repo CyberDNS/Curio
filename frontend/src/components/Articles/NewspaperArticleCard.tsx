@@ -207,11 +207,7 @@ export default function NewspaperArticleCard({
         {/* Content */}
         <div className={`${styles.contentPadding} flex-1 flex flex-col`}>
           <h2
-            className={`${
-              styles.title
-            } cursor-pointer hover:text-newspaper-700 transition-colors ${
-              article.is_read ? "text-newspaper-500" : "text-newspaper-900"
-            }`}
+            className={`${styles.title} cursor-pointer hover:text-newspaper-700 transition-colors text-newspaper-900`}
             onClick={handleClick}
           >
             {displayTitle}
