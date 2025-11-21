@@ -7,13 +7,7 @@ import {
   deleteFeed,
   fetchFeeds,
 } from "../../services/api";
-import {
-  Plus,
-  Trash2,
-  Loader2,
-  RefreshCw,
-  Pencil,
-} from "lucide-react";
+import { Plus, Trash2, Loader2, RefreshCw, Pencil } from "lucide-react";
 import type { FeedCreate, Feed } from "../../types";
 
 export default function FeedSettings() {
