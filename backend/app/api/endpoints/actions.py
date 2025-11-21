@@ -124,6 +124,58 @@ async def reprocess_article(
     return {"message": "Article reprocessed successfully", "processed": processed > 0}
 
 
+@router.post("/run-full-update")
+async def run_full_update(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Run the full scheduled update workflow:
+    1. Fetch articles from all RSS feeds
+    2. Process new articles with LLM
+    3. Regenerate today's newspaper
+
+    This does what the scheduler does automatically.
+    """
+    from app.services.newspaper_generator import NewspaperGenerator
+    from app.models.article import Article
+    from datetime import datetime, timedelta, timezone
+
+    # Step 1: Fetch articles from all feeds
+    fetcher = RSSFetcher(db)
+    new_articles = await fetcher.fetch_all_feeds(days_back=7)
+
+    # Step 2: Archive old articles (>7 days)
+    cutoff_date = datetime.now(timezone.utc) - timedelta(days=7)
+    archived_count = (
+        db.query(Article)
+        .filter(
+            Article.published_date < cutoff_date,
+            Article.is_archived == False,
+            Article.user_id == current_user.id,
+        )
+        .update({"is_archived": True})
+    )
+    db.commit()
+
+    # Step 3: Process articles with LLM (last 24 hours)
+    processor = LLMProcessor(db)
+    processed = await processor.process_articles(user_id=current_user.id)
+
+    # Step 4: Regenerate today's newspaper
+    generator = NewspaperGenerator(db)
+    newspaper = await generator.generate_newspaper_for_user(current_user.id)
+
+    return {
+        "message": "Full update completed successfully",
+        "new_articles": new_articles,
+        "archived_articles": archived_count,
+        "processed_articles": processed,
+        "today_count": len(newspaper.structure.get("today", [])),
+        "category_count": len(newspaper.structure.get("categories", {})),
+    }
+
+
 @router.post("/download-article-images")
 async def download_article_images(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)

@@ -3,11 +3,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getArticles,
   reprocessArticle,
-  processArticles,
   getCategories,
   getRelatedArticles,
   downvoteArticle,
   explainScoreAdjustment,
+  runFullUpdate,
 } from "../services/api";
 import PageHeader from "../components/Layout/PageHeader";
 import {
@@ -16,11 +16,11 @@ import {
   ExternalLink,
   Check,
   X,
-  Sparkles,
   Copy,
   ThumbsDown,
   Info,
   GitCompare,
+  Newspaper,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import RelatedArticlesDialog from "../components/Articles/RelatedArticlesDialog";
@@ -40,8 +40,6 @@ export default function AllArticlesPage() {
   const [processingArticleIds, setProcessingArticleIds] = useState<Set<number>>(
     new Set()
   );
-  const [showProcessDialog, setShowProcessDialog] = useState(false);
-  const [daysBack, setDaysBack] = useState<number>(30);
   const [showRelatedDialog, setShowRelatedDialog] = useState(false);
   const [selectedArticleId, setSelectedArticleId] = useState<number | null>(
     null
@@ -100,11 +98,27 @@ export default function AllArticlesPage() {
     },
   });
 
-  const processMutation = useMutation({
-    mutationFn: (days: number) => processArticles(days),
-    onSuccess: () => {
+  const fullUpdateMutation = useMutation({
+    mutationFn: runFullUpdate,
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["articles"] });
-      setShowProcessDialog(false);
+      queryClient.invalidateQueries({ queryKey: ["newspaper"] });
+      queryClient.invalidateQueries({ queryKey: ["newspapers"] });
+      alert(
+        `Update completed!\n\n` +
+          `• ${data.new_articles} new articles fetched\n` +
+          `• ${data.processed_articles} articles processed\n` +
+          `• ${data.archived_articles} articles archived\n` +
+          `• ${data.today_count} articles on Today page\n` +
+          `• ${data.category_count} categories updated`
+      );
+    },
+    onError: (error) => {
+      alert(
+        `Update failed: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     },
   });
 
@@ -120,10 +134,6 @@ export default function AllArticlesPage() {
       setProcessingArticleIds((prev) => new Set(prev).add(articleId));
       reprocessMutation.mutate(articleId);
     }
-  };
-
-  const handleProcessConfirm = () => {
-    processMutation.mutate(daysBack);
   };
 
   const handleDownvote = (
@@ -256,15 +266,33 @@ export default function AllArticlesPage() {
       />
 
       {/* Page Actions */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <button
-          onClick={() => setShowProcessDialog(true)}
-          disabled={stats.unprocessed === 0 || processMutation.isPending}
-          className="flex items-center gap-2 px-4 py-2 bg-newspaper-900 text-white hover:bg-newspaper-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          title="Process unprocessed articles with AI"
+          onClick={() => {
+            if (
+              confirm(
+                "This will:\n" +
+                  "• Fetch new articles from all RSS feeds\n" +
+                  "• Process new articles with AI\n" +
+                  "• Regenerate today's newspaper\n\n" +
+                  "Continue?"
+              )
+            ) {
+              fullUpdateMutation.mutate();
+            }
+          }}
+          disabled={fullUpdateMutation.isPending}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          title="Run full update: fetch feeds, process articles, regenerate newspaper"
         >
-          <Sparkles className="w-4 h-4" />
-          Process Articles
+          <Newspaper
+            className={`w-4 h-4 ${
+              fullUpdateMutation.isPending ? "animate-pulse" : ""
+            }`}
+          />
+          {fullUpdateMutation.isPending
+            ? "Updating..."
+            : "Update & Regenerate Today"}
         </button>
         {selectedForComparison.size > 0 && (
           <>
@@ -320,55 +348,6 @@ export default function AllArticlesPage() {
           <div className="text-sm text-newspaper-600">Duplicates</div>
         </div>
       </div>
-
-      {/* Process Dialog */}
-      {showProcessDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 max-w-md w-full mx-4 border-2 border-newspaper-900">
-            <h3 className="newspaper-heading text-xl mb-4">
-              Process Articles with AI
-            </h3>
-            <p className="text-sm text-newspaper-600 mb-4">
-              Process unprocessed articles from the last N days with the LLM to
-              generate summaries, categories, and relevance scores.
-            </p>
-            <div className="mb-6">
-              <label className="block text-sm font-medium mb-2">
-                Days to go back
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="365"
-                value={daysBack}
-                onChange={(e) => setDaysBack(parseInt(e.target.value) || 30)}
-                className="w-full px-3 py-2 border border-newspaper-300 focus:outline-none focus:border-newspaper-900"
-                placeholder="30"
-              />
-              <p className="text-xs text-newspaper-600 mt-1">
-                Only unprocessed articles from the last {daysBack} days will be
-                processed
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={handleProcessConfirm}
-                disabled={processMutation.isPending}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50"
-              >
-                {processMutation.isPending ? "Processing..." : "Process"}
-              </button>
-              <button
-                onClick={() => setShowProcessDialog(false)}
-                disabled={processMutation.isPending}
-                className="flex-1 px-4 py-2 border border-newspaper-300 hover:bg-newspaper-100 transition-colors disabled:opacity-50"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Filters */}
       <div className="space-y-4">

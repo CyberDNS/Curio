@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.core.database import Base
@@ -13,6 +13,8 @@ class Category(Base):
     slug = Column(String, nullable=False)
     description = Column(String, nullable=True)  # Description for LLM classification
     display_order = Column(Integer, default=0)
+    is_deleted = Column(Boolean, default=False, index=True)  # Soft delete flag
+    deleted_at = Column(DateTime, nullable=True)  # When category was deleted
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

@@ -106,6 +106,13 @@ export const deleteCategory = async (id: number): Promise<void> => {
   await api.delete(`/categories/${id}`);
 };
 
+export const reorderCategories = async (
+  categoryIds: number[]
+): Promise<Category[]> => {
+  const { data } = await api.post("/categories/reorder", categoryIds);
+  return data;
+};
+
 // Feeds
 export const getFeeds = async (): Promise<Feed[]> => {
   const { data } = await api.get("/feeds/");
@@ -180,6 +187,18 @@ export const reprocessArticle = async (
   article_id: number
 ): Promise<{ message: string; processed: boolean }> => {
   const { data } = await api.post(`/actions/reprocess-article/${article_id}`);
+  return data;
+};
+
+export const runFullUpdate = async (): Promise<{
+  message: string;
+  new_articles: number;
+  archived_articles: number;
+  processed_articles: number;
+  today_count: number;
+  category_count: number;
+}> => {
+  const { data } = await api.post("/actions/run-full-update");
   return data;
 };
 

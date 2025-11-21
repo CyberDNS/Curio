@@ -9,6 +9,14 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Minimum relevance score for articles to appear in newspapers
+# Articles below this threshold are considered too low quality
+MIN_NEWSPAPER_SCORE = 0.6
+
+# Minimum relevance score for articles to appear in newspapers
+# Articles below this threshold are considered too low quality
+MIN_NEWSPAPER_SCORE = 0.6
+
 
 class NewspaperGenerator:
     """
@@ -77,6 +85,22 @@ class NewspaperGenerator:
             .all()
         )
 
+        # Filter by minimum score threshold (use adjusted_score if available, otherwise base score)
+        eligible_articles = [
+            a
+            for a in eligible_articles
+            if (a.adjusted_relevance_score or a.relevance_score or 0.0)
+            >= MIN_NEWSPAPER_SCORE
+        ]
+
+        # Filter by minimum score threshold (use adjusted_score if available, otherwise base score)
+        eligible_articles = [
+            a
+            for a in eligible_articles
+            if (a.adjusted_relevance_score or a.relevance_score or 0.0)
+            >= MIN_NEWSPAPER_SCORE
+        ]
+
         # Filter out articles already in today's newspaper
         new_articles = []
         for article in eligible_articles:
@@ -102,10 +126,10 @@ class NewspaperGenerator:
             f"Found {len(new_articles)} new articles for user {user_id} on {target_date}"
         )
 
-        # Get user's categories (ordered by display_order)
+        # Get user's active (non-deleted) categories (ordered by display_order)
         categories = (
             self.db.query(Category)
-            .filter(Category.user_id == user_id)
+            .filter(Category.user_id == user_id, Category.is_deleted == False)
             .order_by(Category.display_order)
             .all()
         )
@@ -139,16 +163,15 @@ class NewspaperGenerator:
         Rule-based curation algorithm.
 
         "Today" Section Rules:
-        - Best articles from each category (score-based)
-        - No limits, all best articles go here
+        - Best articles from each category (score-based selection)
+        - Quality-based scaling: 3-9 articles per category depending on scores
+        - Higher quality categories get more articles on Today page
+        - All articles sorted by score (no time-based ordering)
 
         Category Sections:
-        - Remaining articles go to their assigned categories
-        - No article appears in both "Today" and a category section
-
-        Ordering:
-        - New articles first (sorted by score DESC)
-        - Existing articles second (sorted by score DESC)
+        - All remaining articles (that meet MIN_NEWSPAPER_SCORE threshold)
+        - Sorted by score DESC
+        - No article appears in both "Today" and category section
         """
 
         # Start with existing structure or empty
@@ -190,9 +213,9 @@ class NewspaperGenerator:
             reverse=True,
         )
 
-        # Select best articles for "Today" section using dynamic algorithm
-        # Strategy: Take top articles from each category proportionally to ensure diversity
-        # Aim for ~15-20 articles total on Today page, distributed across categories
+        # Select best articles for "Today" section using quality-based algorithm
+        # Strategy: Select 3-9 articles per category based on the quality of available articles
+        # Higher quality categories get more articles on Today page
 
         today_articles = []
         category_articles = {}  # Articles that go to category sections
@@ -200,9 +223,6 @@ class NewspaperGenerator:
         # Create category slug lookup
         cat_id_to_slug = {cat.id: cat.slug for cat in categories}
 
-        # Calculate how many articles to take from each category for "Today"
-        # Target: 15-20 articles total, distributed across categories
-        target_today_count = 20
         categories_with_articles = [
             cat
             for cat in categories
@@ -210,7 +230,6 @@ class NewspaperGenerator:
         ]
 
         if categories_with_articles:
-            # Distribute slots across categories (at least 1 per category, more for categories with more articles)
             articles_per_category = {}
             total_new_articles = sum(
                 len(articles_by_category[cat.id]) for cat in categories_with_articles
@@ -220,27 +239,37 @@ class NewspaperGenerator:
                 f"Total new articles to curate: {total_new_articles} across {len(categories_with_articles)} categories"
             )
 
-            # Strategy: Take top 50% of articles from each category for Today (min 1, max based on target)
-            # This ensures category pages always have content if there are enough articles
+            # Quality-based selection: Determine how many articles to feature on Today
+            # based on the quality (score) of the best articles in each category
             for cat in categories_with_articles:
-                cat_article_count = len(articles_by_category[cat.id])
+                cat_articles = articles_by_category[cat.id]
 
-                # Take roughly 40-50% of articles for today (but at least 1 if only 1-2 articles)
-                if cat_article_count <= 2:
-                    articles_per_category[cat.id] = 1
-                elif cat_article_count <= 5:
-                    articles_per_category[cat.id] = 2
-                else:
-                    # Take roughly half, but cap based on target
-                    max_from_category = max(
-                        2, target_today_count // len(categories_with_articles)
-                    )
-                    articles_per_category[cat.id] = min(
-                        max_from_category, int(cat_article_count * 0.5)
-                    )
+                # Get the score of the best article in this category
+                best_score = max(
+                    (a.adjusted_relevance_score or a.relevance_score or 0.0)
+                    for a in cat_articles
+                )
+
+                # Quality-based scaling:
+                # 0.9+: exceptional quality → take up to 9 articles
+                # 0.8-0.9: high quality → take up to 6 articles
+                # 0.7-0.8: good quality → take up to 4 articles
+                # 0.6-0.7: acceptable quality → take up to 3 articles
+                if best_score >= 0.9:
+                    max_articles = 9
+                elif best_score >= 0.8:
+                    max_articles = 6
+                elif best_score >= 0.7:
+                    max_articles = 4
+                else:  # 0.6-0.7
+                    max_articles = 3
+
+                # Take the best N articles, but don't exceed available count
+                articles_per_category[cat.id] = min(max_articles, len(cat_articles))
 
                 logger.info(
-                    f"Category {cat.slug}: {cat_article_count} articles, taking {articles_per_category[cat.id]} for Today"
+                    f"Category {cat.slug}: {len(cat_articles)} articles, "
+                    f"best score={best_score:.2f}, taking {articles_per_category[cat.id]} for Today"
                 )
 
             # Select top N articles from each category for "Today"
@@ -280,66 +309,82 @@ class NewspaperGenerator:
                     today_articles.append(article)
                 # Note: uncategorized articles don't go to category sections
 
-        # Sort all "Today" articles by score
-        today_articles = sorted(
-            today_articles, key=lambda a: a.relevance_score or 0.0, reverse=True
-        )
-
-        # Build today IDs list (new articles only)
-        new_today_ids = [a.id for a in today_articles]
-
-        # Get existing "Today" articles and sort by score
+        # Get ALL articles that should be on Today (combine new selection with existing)
+        new_today_ids = set(a.id for a in today_articles)
         existing_today_ids = set(structure["today"])
-        existing_articles_today = []
-        if existing_today_ids:
-            existing_articles_today = (
-                self.db.query(Article).filter(Article.id.in_(existing_today_ids)).all()
-            )
-            existing_articles_today = sorted(
-                existing_articles_today,
-                key=lambda a: a.relevance_score or 0.0,
-                reverse=True,
-            )
 
-        # Combine: new articles first, then existing (both sorted by score)
-        structure["today"] = new_today_ids + [a.id for a in existing_articles_today]
+        # Combine new and existing, then re-fetch and re-sort by current scores
+        all_today_ids = new_today_ids | existing_today_ids
 
-        # For category sections: Add new articles, then keep existing articles (both sorted)
+        if all_today_ids:
+            all_today_articles = (
+                self.db.query(Article).filter(Article.id.in_(all_today_ids)).all()
+            )
+            # Filter out articles that no longer meet score threshold
+            all_today_articles = [
+                a
+                for a in all_today_articles
+                if (a.adjusted_relevance_score or a.relevance_score or 0.0)
+                >= MIN_NEWSPAPER_SCORE
+            ]
+            # Sort with unread articles first, then by score within each group
+            all_today_articles = sorted(
+                all_today_articles,
+                key=lambda a: (
+                    a.is_read,  # False (unread) sorts before True (read)
+                    -(
+                        a.adjusted_relevance_score or a.relevance_score or 0.0
+                    ),  # Negative for descending score
+                ),
+            )
+            structure["today"] = [a.id for a in all_today_articles]
+        else:
+            structure["today"] = []
+
+        # For category sections: Combine new and existing, filter by score, sort by score
         for category in categories:
             cat_slug = category.slug
 
             # Get new articles for this category
-            new_cat_ids = []
+            new_cat_ids = set()
             if cat_slug in category_articles:
-                new_cat_articles = sorted(
-                    category_articles[cat_slug],
-                    key=lambda a: a.relevance_score or 0.0,
-                    reverse=True,
-                )
-                new_cat_ids = [a.id for a in new_cat_articles]
+                new_cat_ids = set(a.id for a in category_articles[cat_slug])
 
             # Get existing articles in this category
-            existing_cat_ids = []
+            existing_cat_ids = set()
             if cat_slug in structure["categories"]:
-                existing_cat_ids = structure["categories"][cat_slug]
-                if existing_cat_ids:
-                    existing_cat_articles = (
-                        self.db.query(Article)
-                        .filter(Article.id.in_(existing_cat_ids))
-                        .all()
-                    )
-                    # Sort by score
-                    existing_cat_articles = sorted(
-                        existing_cat_articles,
-                        key=lambda a: a.relevance_score or 0.0,
-                        reverse=True,
-                    )
-                    existing_cat_ids = [a.id for a in existing_cat_articles]
+                existing_cat_ids = set(structure["categories"][cat_slug])
 
-            # Combine: new articles first, then existing
-            structure["categories"][cat_slug] = new_cat_ids + existing_cat_ids
+            # Combine all article IDs for this category
+            all_cat_ids = new_cat_ids | existing_cat_ids
 
-        logger.info(f"Curated {len(new_today_ids)} new articles for 'Today' section")
+            if all_cat_ids:
+                # Fetch all articles and filter/sort by current scores
+                all_cat_articles = (
+                    self.db.query(Article).filter(Article.id.in_(all_cat_ids)).all()
+                )
+                # Filter out articles that no longer meet score threshold
+                all_cat_articles = [
+                    a
+                    for a in all_cat_articles
+                    if (a.adjusted_relevance_score or a.relevance_score or 0.0)
+                    >= MIN_NEWSPAPER_SCORE
+                ]
+                # Sort with unread articles first, then by score within each group
+                all_cat_articles = sorted(
+                    all_cat_articles,
+                    key=lambda a: (
+                        a.is_read,  # False (unread) sorts before True (read)
+                        -(
+                            a.adjusted_relevance_score or a.relevance_score or 0.0
+                        ),  # Negative for descending score
+                    ),
+                )
+                structure["categories"][cat_slug] = [a.id for a in all_cat_articles]
+            else:
+                structure["categories"][cat_slug] = []
+
+        logger.info(f"Selected {len(new_today_ids)} articles for 'Today' section")
         logger.info(f"Total 'Today' articles: {len(structure['today'])}")
 
         # Log category section stats

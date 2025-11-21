@@ -50,8 +50,8 @@ class LLMProcessor:
         else:
             selection_prompt = selection_prompt_setting.value
 
-        # Get existing categories with descriptions for the LLM to consider
-        query_categories = self.db.query(Category)
+        # Get existing active (non-deleted) categories with descriptions for the LLM to consider
+        query_categories = self.db.query(Category).filter(Category.is_deleted == False)
         if user_id:
             query_categories = query_categories.filter(Category.user_id == user_id)
 
@@ -97,17 +97,11 @@ class LLMProcessor:
                 article.summary = result.get("summary", "")
                 article.relevance_score = result.get("relevance_score", 0.0)
 
-                # Assign to category (create "Uncategorized" if needed for high-scoring articles)
+                # Assign to category (only if LLM found a matching category)
                 category_id = result.get("category_id")
                 if category_id:
                     article.category_id = category_id
-                elif article.relevance_score >= 0.6:
-                    # High-scoring article but no category match - use Uncategorized
-                    uncategorized = self._get_or_create_uncategorized(article.user_id)
-                    article.category_id = uncategorized.id
-                    logger.info(
-                        f"Assigned high-scoring article {article.id} to Uncategorized"
-                    )
+                # If no category match, leave category_id as None
 
                 # Commit article updates before duplicate detection
                 self.db.commit()
@@ -385,31 +379,6 @@ Analyze and provide comprehensive JSON output."""
         content = re.sub(r" +", " ", content)
 
         return content.strip()
-
-    def _get_or_create_uncategorized(self, user_id: int) -> Category:
-        """
-        Get or create the "Uncategorized" category for a user.
-        Used for high-scoring articles that don't fit into existing categories.
-        """
-        uncategorized = (
-            self.db.query(Category)
-            .filter(Category.user_id == user_id, Category.slug == "uncategorized")
-            .first()
-        )
-
-        if not uncategorized:
-            uncategorized = Category(
-                user_id=user_id,
-                name="Uncategorized",
-                slug="uncategorized",
-                description="Articles that don't fit into other categories but have high relevance scores",
-                display_order=9999,  # Display at end
-            )
-            self.db.add(uncategorized)
-            self.db.commit()
-            logger.info(f"Created 'Uncategorized' category for user {user_id}")
-
-        return uncategorized
 
     async def regenerate_summaries(self, category_id: Optional[int] = None) -> int:
         """Regenerate summaries for existing articles."""
