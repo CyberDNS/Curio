@@ -104,10 +104,10 @@ export default function AllArticlesPage() {
       queryClient.invalidateQueries({ queryKey: ["articles"] });
       queryClient.invalidateQueries({ queryKey: ["newspaper"] });
       queryClient.invalidateQueries({ queryKey: ["newspapers"] });
-      
+
       alert(
         "Full update started in the background.\n\n" +
-        "This may take a few minutes. Refresh the page to see new articles."
+          "This may take a few minutes. Refresh the page to see new articles."
       );
     },
     onError: (error) => {

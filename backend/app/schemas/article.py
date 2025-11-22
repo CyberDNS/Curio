@@ -26,7 +26,7 @@ class ArticleUpdate(BaseModel):
 
 class Article(ArticleBase):
     id: int
-    feed_id: int
+    feed_id: Optional[int] = None
     category_id: Optional[int] = None
     image_url: Optional[str] = None
 
