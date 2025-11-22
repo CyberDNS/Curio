@@ -2,6 +2,8 @@
 
 <div align="center">
 
+<img src="assets/Curio Logo.png" alt="Curio Logo" width="200"/>
+
 **AI-powered RSS feed aggregator with newspaper-style presentation**
 
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue?logo=docker)](https://www.docker.com/)
@@ -25,6 +27,24 @@ Curio is a self-hosted, personalized news aggregator that fetches content from y
 - 🔄 **Automatic Updates** - Background scheduler fetches new content automatically
 - 💾 **PostgreSQL Database** - Reliable data storage with full history
 - ⚙️ **Customizable** - Configure your interests and AI behavior through settings
+
+## Screenshots
+
+<div align="center">
+
+### Main Newspaper View
+
+<img src="assets/SCR-20251122-jhgq.png" alt="Curio Main View" width="800"/>
+
+### Article Reading
+
+<img src="assets/SCR-20251122-jhne.png" alt="Article View" width="800"/>
+
+### Settings & Configuration
+
+<img src="assets/SCR-20251122-jhrv.png" alt="Settings View" width="800"/>
+
+</div>
 
 ## Quick Start
 
