@@ -30,6 +30,29 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting Curio application...")
 
+    # Security check: Ensure authentication is properly configured
+    from app.api.endpoints.auth import OAUTH_CONFIGURED, DEV_MODE_ENABLED
+
+    if not OAUTH_CONFIGURED and not DEV_MODE_ENABLED:
+        logger.critical(
+            "❌ SECURITY ERROR: Application cannot start without authentication!\n"
+            "   Option 1 (Production): Configure OAuth in .env file\n"
+            "   Option 2 (Development): Set DEV_MODE=true in .env file\n\n"
+            "   WARNING: DEV_MODE bypasses authentication and is INSECURE!"
+        )
+        raise RuntimeError(
+            "Authentication not configured. Set up OAuth or enable DEV_MODE for development."
+        )
+
+    if DEV_MODE_ENABLED:
+        logger.warning(
+            "\n" + "=" * 80 + "\n"
+            "⚠️  SECURITY WARNING: DEV_MODE IS ENABLED\n"
+            "   Authentication is bypassed - any user can access the application\n"
+            "   This mode should NEVER be used in production!\n"
+            "=" * 80 + "\n"
+        )
+
     # Create database tables
     Base.metadata.create_all(bind=engine)
     logger.info("Database tables created")

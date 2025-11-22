@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     # Application
     SECRET_KEY: str
     DEBUG: bool = False
+    DEV_MODE: bool = False  # Enables development authentication bypass (INSECURE)
     CORS_ORIGINS: Union[List[str], str] = ["http://localhost:3000"]
 
     @field_validator("CORS_ORIGINS", mode="before")

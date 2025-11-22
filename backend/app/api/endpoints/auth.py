@@ -19,6 +19,9 @@ OAUTH_CONFIGURED = (
     and not settings.OAUTH_SERVER_METADATA_URL.startswith("https://your-")
 )
 
+# Development mode security check
+DEV_MODE_ENABLED = settings.DEV_MODE and not OAUTH_CONFIGURED
+
 # Initialize OAuth only if properly configured
 if OAUTH_CONFIGURED:
     oauth = OAuth()
@@ -29,16 +32,30 @@ if OAUTH_CONFIGURED:
         server_metadata_url=settings.OAUTH_SERVER_METADATA_URL,
         client_kwargs={"scope": "openid email profile"},
     )
+elif DEV_MODE_ENABLED:
+    logger.warning(
+        "⚠️  SECURITY WARNING: Development authentication mode is enabled. "
+        "This bypasses all authentication and should NEVER be used in production!"
+    )
 else:
-    logger.warning("OAuth not configured - using development mock authentication")
+    logger.error(
+        "❌ OAuth is not configured and DEV_MODE is not enabled. "
+        "Set DEV_MODE=true in .env for local development, or configure OAuth for production."
+    )
 
 
 @router.get("/login")
 async def login(request: Request, db: Session = Depends(get_db)):
     """Initiate OAuth2/OIDC login flow."""
-    if not OAUTH_CONFIGURED:
+    if not OAUTH_CONFIGURED and not DEV_MODE_ENABLED:
+        raise HTTPException(
+            status_code=503,
+            detail="Authentication not available. OAuth is not configured and DEV_MODE is not enabled.",
+        )
+
+    if DEV_MODE_ENABLED:
         # Development mode - create a mock user and return token directly
-        logger.info("Using development mock authentication")
+        logger.warning("⚠️  Using insecure development authentication bypass")
 
         # Find or create a dev user
         dev_user = db.query(User).filter(User.email == "dev@localhost").first()
@@ -90,7 +107,8 @@ async def auth_callback(request: Request, db: Session = Depends(get_db)):
     """Handle OAuth2/OIDC callback and create/update user."""
     if not OAUTH_CONFIGURED:
         raise HTTPException(
-            status_code=400, detail="OAuth not configured - use /login for dev mode"
+            status_code=400,
+            detail="OAuth not configured. For development, use /login endpoint with DEV_MODE=true",
         )
 
     try:
