@@ -8,19 +8,27 @@ from app.core.auth import get_current_user
 from app.models.article import Article
 from app.models.user import User
 from app.schemas.article import Article as ArticleSchema, ArticleUpdate
+from app.api.validation import (
+    validate_positive_int,
+    validate_days_back,
+    SkipParam,
+    LimitParam,
+    CategoryIdParam,
+    DaysBackParam,
+)
 
 router = APIRouter()
 
 
 @router.get("/", response_model=List[ArticleSchema])
 def get_articles(
-    skip: int = 0,
-    limit: int = 100,
-    category_id: Optional[int] = None,
-    tags: Optional[List[str]] = Query(None),
+    skip: int = SkipParam,
+    limit: int = LimitParam,
+    category_id: Optional[int] = CategoryIdParam,
+    tags: Optional[List[str]] = Query(None, max_length=100),
     selected_only: bool = False,
     unread_only: bool = False,
-    days_back: int = 3,
+    days_back: Optional[int] = Query(3, ge=0, le=365),
     balanced: bool = False,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -132,6 +140,9 @@ def get_article(
     current_user: User = Depends(get_current_user),
 ):
     """Get a specific article by ID for the current user."""
+    # Validate article_id
+    validate_positive_int(article_id, "article_id")
+
     article = (
         db.query(Article)
         .options(joinedload(Article.feed))
@@ -152,6 +163,9 @@ def update_article(
     current_user: User = Depends(get_current_user),
 ):
     """Update article status (read/archived) for the current user."""
+    # Validate article_id
+    validate_positive_int(article_id, "article_id")
+
     article = (
         db.query(Article)
         .filter(Article.id == article_id, Article.user_id == current_user.id)
@@ -176,6 +190,9 @@ def get_related_articles(
     current_user: User = Depends(get_current_user),
 ):
     """Get related articles (duplicates) for a given article."""
+    # Validate article_id
+    validate_positive_int(article_id, "article_id")
+
     # Get the article
     article = (
         db.query(Article)
@@ -233,7 +250,7 @@ def get_related_articles(
 
 @router.post("/mark-all-read")
 def mark_all_read(
-    category_id: Optional[int] = None,
+    category_id: Optional[int] = CategoryIdParam,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -261,6 +278,9 @@ def downvote_article(
     Future articles similar to downvoted content will receive lower relevance scores.
     Downvotes can be toggled (downvote again to remove).
     """
+    # Validate article_id
+    validate_positive_int(article_id, "article_id")
+
     article = (
         db.query(Article)
         .filter(Article.id == article_id, Article.user_id == current_user.id)
@@ -306,6 +326,9 @@ async def explain_score_adjustment(
     Uses LLM to generate natural language explanation comparing the article
     to similar downvoted content.
     """
+    # Validate article_id
+    validate_positive_int(article_id, "article_id")
+
     article = (
         db.query(Article)
         .filter(Article.id == article_id, Article.user_id == current_user.id)

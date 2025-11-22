@@ -4,7 +4,12 @@ from sqlalchemy.orm import Session
 from authlib.integrations.starlette_client import OAuth
 from app.core.database import get_db
 from app.core.config import settings
-from app.core.auth import create_access_token, get_current_user
+from app.core.auth import (
+    create_token_pair,
+    create_access_token,
+    decode_token,
+    get_current_user,
+)
 from app.models.user import User
 from datetime import datetime
 import logging
@@ -77,24 +82,37 @@ async def login(request: Request, db: Session = Depends(get_db)):
             dev_user.last_login = datetime.utcnow()
             db.commit()
 
-        # Create token
-        access_token = create_access_token(data={"sub": dev_user.id})
+        # Create token pair
+        access_token, refresh_token = create_token_pair(dev_user.id)
 
-        # Redirect to frontend with token in HttpOnly cookie
+        # Redirect to frontend with tokens in HttpOnly cookies
         frontend_url = (
             settings.CORS_ORIGINS[0]
             if isinstance(settings.CORS_ORIGINS, list)
             else settings.CORS_ORIGINS
         )
         response = RedirectResponse(url=f"{frontend_url}/")
+
+        # Set access token cookie (1 hour)
         response.set_cookie(
             key="auth_token",
             value=access_token,
             httponly=True,  # Not accessible via JavaScript
             secure=settings.COOKIE_SECURE,  # Only sent over HTTPS in production
             samesite="lax",  # CSRF protection
+            max_age=60 * 60,  # 1 hour
+        )
+
+        # Set refresh token cookie (7 days)
+        response.set_cookie(
+            key="refresh_token",
+            value=refresh_token,
+            httponly=True,
+            secure=settings.COOKIE_SECURE,
+            samesite="lax",
             max_age=60 * 60 * 24 * 7,  # 7 days
         )
+
         return response
 
     # Production OAuth flow
@@ -159,24 +177,37 @@ async def auth_callback(request: Request, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(user)
 
-        # Create JWT token for the user
-        access_token = create_access_token(data={"sub": user.id})
+        # Create JWT token pair for the user
+        access_token, refresh_token = create_token_pair(user.id)
 
-        # Redirect to frontend with token in HttpOnly cookie
+        # Redirect to frontend with tokens in HttpOnly cookies
         frontend_url = (
             settings.CORS_ORIGINS[0]
             if isinstance(settings.CORS_ORIGINS, list)
             else settings.CORS_ORIGINS
         )
         response = RedirectResponse(url=f"{frontend_url}/")
+
+        # Set access token cookie (1 hour)
         response.set_cookie(
             key="auth_token",
             value=access_token,
             httponly=True,  # Not accessible via JavaScript
             secure=settings.COOKIE_SECURE,  # Only sent over HTTPS in production
             samesite="lax",  # CSRF protection
+            max_age=60 * 60,  # 1 hour
+        )
+
+        # Set refresh token cookie (7 days)
+        response.set_cookie(
+            key="refresh_token",
+            value=refresh_token,
+            httponly=True,
+            secure=settings.COOKIE_SECURE,
+            samesite="lax",
             max_age=60 * 60 * 24 * 7,  # 7 days
         )
+
         return response
 
     except Exception as e:
@@ -184,19 +215,90 @@ async def auth_callback(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail=f"Authentication failed: {str(e)}")
 
 
+@router.post("/refresh")
+async def refresh_access_token(request: Request, db: Session = Depends(get_db)):
+    """
+    Refresh access token using refresh token.
+
+    This endpoint allows clients to get a new access token without re-authenticating.
+    The refresh token must be valid and not expired.
+    """
+    from fastapi.responses import JSONResponse
+
+    # Get refresh token from cookie
+    refresh_token = request.cookies.get("refresh_token")
+    if not refresh_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token not found"
+        )
+
+    try:
+        # Decode and validate refresh token
+        payload = decode_token(refresh_token, token_type="refresh")
+        user_id_str = payload.get("sub")
+
+        if not user_id_str:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
+            )
+
+        user_id = int(user_id_str)
+
+        # Verify user still exists and is active
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user or not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found or inactive",
+            )
+
+        # Create new access token (keep same refresh token)
+        new_access_token = create_access_token(data={"sub": user_id})
+
+        # Return new access token
+        response = JSONResponse(content={"message": "Token refreshed successfully"})
+        response.set_cookie(
+            key="auth_token",
+            value=new_access_token,
+            httponly=True,
+            secure=settings.COOKIE_SECURE,
+            samesite="lax",
+            max_age=60 * 60,  # 1 hour
+        )
+
+        return response
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error refreshing token: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
+        )
+
+
 @router.post("/logout")
 async def logout():
-    """Logout endpoint - clears the auth cookie."""
+    """Logout endpoint - clears both auth and refresh tokens."""
     response = {"message": "Logged out successfully"}
     from fastapi.responses import JSONResponse
 
     json_response = JSONResponse(content=response)
+
+    # Delete both cookies
     json_response.delete_cookie(
         key="auth_token",
         httponly=True,
         secure=settings.COOKIE_SECURE,
         samesite="lax",
     )
+    json_response.delete_cookie(
+        key="refresh_token",
+        httponly=True,
+        secure=settings.COOKIE_SECURE,
+        samesite="lax",
+    )
+
     return json_response
 
 
@@ -215,13 +317,5 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
     }
 
 
-@router.get("/debug/token")
-async def debug_token(request: Request):
-    """Debug endpoint to check token in request."""
-    auth_header = request.headers.get("Authorization")
-    logger.debug(f"Authorization header: {auth_header}")
-    return {
-        "has_auth_header": auth_header is not None,
-        "auth_header": auth_header,
-        "all_headers": dict(request.headers),
-    }
+# Debug endpoint removed for security - use proper logging for debugging authentication issues
+# If needed for development, enable DEBUG logging level to see authentication details
