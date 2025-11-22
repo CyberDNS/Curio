@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings
-from typing import List, Union
+from typing import List, Union, Optional
 from pydantic import field_validator
 
 
@@ -52,6 +52,17 @@ class Settings(BaseSettings):
         "./media"  # Path for media storage (use /app/media in production container)
     )
 
+    # File Upload Security
+    MAX_IMAGE_SIZE: int = 10 * 1024 * 1024  # 10MB per image
+    MAX_TOTAL_STORAGE: int = 1024 * 1024 * 1024  # 1GB total storage
+    ALLOWED_IMAGE_TYPES: List[str] = [
+        "image/jpeg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+        "image/svg+xml",
+    ]
+
     # OAuth2 / OpenID Connect
     OAUTH_CLIENT_ID: str
     OAUTH_CLIENT_SECRET: str
@@ -60,6 +71,22 @@ class Settings(BaseSettings):
 
     # Cookie Security
     COOKIE_SECURE: bool = True  # Set to False for local development without HTTPS
+    COOKIE_SAMESITE: str = "lax"  # Options: "strict", "lax", "none"
+    COOKIE_DOMAIN: Optional[str] = None  # Optional: restrict cookies to specific domain
+    ENABLE_HSTS: bool = True  # HTTP Strict Transport Security
+    HSTS_MAX_AGE: int = 31536000  # 1 year in seconds
+    HSTS_INCLUDE_SUBDOMAINS: bool = True  # Apply HSTS to all subdomains
+    HSTS_PRELOAD: bool = False  # Submit to browser HSTS preload lists
+
+    @property
+    def is_production(self) -> bool:
+        """Detect if running in production environment."""
+        # Production indicators:
+        # 1. COOKIE_SECURE is True (requires HTTPS)
+        # 2. Not in DEBUG mode
+        # 3. Not in DEV_MODE
+        # 4. OAUTH is properly configured
+        return self.COOKIE_SECURE and not self.DEBUG and not self.DEV_MODE
 
     class Config:
         env_file = ".env"

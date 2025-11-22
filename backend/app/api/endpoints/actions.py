@@ -1,16 +1,21 @@
-from fastapi import APIRouter, Depends, BackgroundTasks
+from fastapi import APIRouter, Depends, BackgroundTasks, Request
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.auth import get_current_user
 from app.models.user import User
 from app.services.rss_fetcher import RSSFetcher
 from app.services.llm_processor import LLMProcessor
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 router = APIRouter()
+limiter = Limiter(key_func=get_remote_address)
 
 
 @router.post("/fetch-feeds")
+@limiter.limit("30/minute")
 async def fetch_feeds(
+    request: Request,
     background_tasks: BackgroundTasks,
     feed_id: int = None,
     days_back: int = None,
@@ -49,7 +54,9 @@ async def fetch_feeds(
 
 
 @router.post("/process-articles")
+@limiter.limit("10/hour")
 async def process_articles(
+    request: Request,
     days_back: int = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -80,7 +87,9 @@ async def process_articles(
 
 
 @router.post("/regenerate-summaries")
+@limiter.limit("5/hour")
 async def regenerate_summaries(
+    request: Request,
     category_id: int = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -92,8 +101,10 @@ async def regenerate_summaries(
 
 
 @router.post("/reprocess-article/{article_id}")
+@limiter.limit("20/hour")
 async def reprocess_article(
     article_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -125,7 +136,9 @@ async def reprocess_article(
 
 
 @router.post("/run-full-update")
+@limiter.limit("5/hour")
 async def run_full_update(
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -177,8 +190,11 @@ async def run_full_update(
 
 
 @router.post("/download-article-images")
+@limiter.limit("30/minute")
 async def download_article_images(
-    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Download images for articles that have external URLs."""
     from app.models.article import Article

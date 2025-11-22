@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 import httpx
 import logging
@@ -6,9 +6,12 @@ import ipaddress
 import socket
 from urllib.parse import urlparse
 from typing import Optional
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+limiter = Limiter(key_func=get_remote_address)
 
 # Maximum image size (5MB)
 MAX_IMAGE_SIZE = 5 * 1024 * 1024
@@ -96,7 +99,8 @@ def validate_url_safety(url: str) -> None:
 
 
 @router.get("/image")
-async def proxy_image(url: str):
+@limiter.limit("60/minute")
+async def proxy_image(request: Request, url: str):
     """
     Proxy an image URL to bypass CORS and referrer restrictions.
 

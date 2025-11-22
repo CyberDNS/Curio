@@ -13,10 +13,14 @@ from app.core.auth import (
 from app.models.user import User
 from datetime import datetime
 import logging
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from app.core.logging_config import log_security_event, get_client_ip
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+limiter = Limiter(key_func=get_remote_address)
 
 # Check if OAuth is properly configured
 OAUTH_CONFIGURED = (
@@ -50,6 +54,7 @@ else:
 
 
 @router.get("/login")
+@limiter.limit("10/minute")
 async def login(request: Request, db: Session = Depends(get_db)):
     """Initiate OAuth2/OIDC login flow."""
     if not OAUTH_CONFIGURED and not DEV_MODE_ENABLED:
@@ -61,6 +66,17 @@ async def login(request: Request, db: Session = Depends(get_db)):
     if DEV_MODE_ENABLED:
         # Development mode - create a mock user and return token directly
         logger.warning("⚠️  Using insecure development authentication bypass")
+
+        client_ip = get_client_ip(request)
+        log_security_event(
+            event_type="auth.login.dev_mode",
+            message="Development mode authentication bypass used",
+            level=logging.WARNING,
+            ip_address=client_ip,
+            user_agent=request.headers.get("user-agent"),
+            request_method="GET",
+            request_path="/api/auth/login",
+        )
 
         # Find or create a dev user
         dev_user = db.query(User).filter(User.email == "dev@localhost").first()
@@ -78,12 +94,34 @@ async def login(request: Request, db: Session = Depends(get_db)):
             db.commit()
             db.refresh(dev_user)
             logger.info("Created development user")
+
+            log_security_event(
+                event_type="auth.user.created",
+                message="Development user account created",
+                user_id=str(dev_user.id),
+                username=dev_user.email,
+                ip_address=client_ip,
+                event_category="authentication",
+            )
         else:
             dev_user.last_login = datetime.utcnow()
             db.commit()
 
         # Create token pair
         access_token, refresh_token = create_token_pair(dev_user.id)
+
+        log_security_event(
+            event_type="auth.login.success",
+            message="User logged in successfully (dev mode)",
+            user_id=str(dev_user.id),
+            username=dev_user.email,
+            ip_address=client_ip,
+            user_agent=request.headers.get("user-agent"),
+            request_method="GET",
+            request_path="/api/auth/login",
+            event_category="authentication",
+            auth_method="dev_mode",
+        )
 
         # Redirect to frontend with tokens in HttpOnly cookies
         frontend_url = (
@@ -93,24 +131,23 @@ async def login(request: Request, db: Session = Depends(get_db)):
         )
         response = RedirectResponse(url=f"{frontend_url}/")
 
-        # Set access token cookie (1 hour)
-        response.set_cookie(
-            key="auth_token",
-            value=access_token,
-            httponly=True,  # Not accessible via JavaScript
-            secure=settings.COOKIE_SECURE,  # Only sent over HTTPS in production
-            samesite="lax",  # CSRF protection
-            max_age=60 * 60,  # 1 hour
-        )
+        # Set cookies with environment-aware security settings
+        cookie_kwargs = {
+            "httponly": True,  # XSS protection
+            "secure": settings.COOKIE_SECURE,  # HTTPS only in production
+            "samesite": settings.COOKIE_SAMESITE,  # CSRF protection
+            "max_age": 60 * 60,  # 1 hour
+        }
+        if settings.COOKIE_DOMAIN:
+            cookie_kwargs["domain"] = settings.COOKIE_DOMAIN
+
+        response.set_cookie(key="auth_token", value=access_token, **cookie_kwargs)
 
         # Set refresh token cookie (7 days)
+        refresh_cookie_kwargs = cookie_kwargs.copy()
+        refresh_cookie_kwargs["max_age"] = 60 * 60 * 24 * 7
         response.set_cookie(
-            key="refresh_token",
-            value=refresh_token,
-            httponly=True,
-            secure=settings.COOKIE_SECURE,
-            samesite="lax",
-            max_age=60 * 60 * 24 * 7,  # 7 days
+            key="refresh_token", value=refresh_token, **refresh_cookie_kwargs
         )
 
         return response
@@ -121,6 +158,7 @@ async def login(request: Request, db: Session = Depends(get_db)):
 
 
 @router.get("/callback")
+@limiter.limit("20/minute")
 async def auth_callback(request: Request, db: Session = Depends(get_db)):
     """Handle OAuth2/OIDC callback and create/update user."""
     if not OAUTH_CONFIGURED:
@@ -152,6 +190,8 @@ async def auth_callback(request: Request, db: Session = Depends(get_db)):
         # Find or create user
         user = db.query(User).filter(User.sub == sub).first()
 
+        client_ip = get_client_ip(request)
+
         if user:
             # Update existing user
             user.email = email
@@ -174,11 +214,35 @@ async def auth_callback(request: Request, db: Session = Depends(get_db)):
             db.add(user)
             logger.info(f"New user created: {email}")
 
+            log_security_event(
+                event_type="auth.user.created",
+                message="New user account created via OAuth",
+                user_id=str(user.id),
+                username=email,
+                ip_address=client_ip,
+                user_agent=request.headers.get("user-agent"),
+                event_category="authentication",
+                auth_provider="oauth",
+            )
+
         db.commit()
         db.refresh(user)
 
         # Create JWT token pair for the user
         access_token, refresh_token = create_token_pair(user.id)
+
+        log_security_event(
+            event_type="auth.login.success",
+            message="User logged in successfully via OAuth",
+            user_id=str(user.id),
+            username=user.email,
+            ip_address=client_ip,
+            user_agent=request.headers.get("user-agent"),
+            request_method="GET",
+            request_path="/api/auth/callback",
+            event_category="authentication",
+            auth_method="oauth",
+        )
 
         # Redirect to frontend with tokens in HttpOnly cookies
         frontend_url = (
@@ -188,34 +252,47 @@ async def auth_callback(request: Request, db: Session = Depends(get_db)):
         )
         response = RedirectResponse(url=f"{frontend_url}/")
 
-        # Set access token cookie (1 hour)
-        response.set_cookie(
-            key="auth_token",
-            value=access_token,
-            httponly=True,  # Not accessible via JavaScript
-            secure=settings.COOKIE_SECURE,  # Only sent over HTTPS in production
-            samesite="lax",  # CSRF protection
-            max_age=60 * 60,  # 1 hour
-        )
+        # Set cookies with environment-aware security settings
+        cookie_kwargs = {
+            "httponly": True,  # XSS protection
+            "secure": settings.COOKIE_SECURE,  # HTTPS only in production
+            "samesite": settings.COOKIE_SAMESITE,  # CSRF protection
+            "max_age": 60 * 60,  # 1 hour
+        }
+        if settings.COOKIE_DOMAIN:
+            cookie_kwargs["domain"] = settings.COOKIE_DOMAIN
+
+        response.set_cookie(key="auth_token", value=access_token, **cookie_kwargs)
 
         # Set refresh token cookie (7 days)
+        refresh_cookie_kwargs = cookie_kwargs.copy()
+        refresh_cookie_kwargs["max_age"] = 60 * 60 * 24 * 7
         response.set_cookie(
-            key="refresh_token",
-            value=refresh_token,
-            httponly=True,
-            secure=settings.COOKIE_SECURE,
-            samesite="lax",
-            max_age=60 * 60 * 24 * 7,  # 7 days
+            key="refresh_token", value=refresh_token, **refresh_cookie_kwargs
         )
 
         return response
 
     except Exception as e:
         logger.error(f"OAuth callback error: {e}")
+
+        log_security_event(
+            event_type="auth.login.failure",
+            message=f"OAuth authentication failed: {str(e)}",
+            level=logging.ERROR,
+            ip_address=get_client_ip(request),
+            user_agent=request.headers.get("user-agent"),
+            request_method="GET",
+            request_path="/api/auth/callback",
+            event_category="authentication",
+            error_type=type(e).__name__,
+        )
+
         raise HTTPException(status_code=400, detail=f"Authentication failed: {str(e)}")
 
 
 @router.post("/refresh")
+@limiter.limit("30/minute")
 async def refresh_access_token(request: Request, db: Session = Depends(get_db)):
     """
     Refresh access token using refresh token.
@@ -255,16 +332,29 @@ async def refresh_access_token(request: Request, db: Session = Depends(get_db)):
         # Create new access token (keep same refresh token)
         new_access_token = create_access_token(data={"sub": user_id})
 
-        # Return new access token
-        response = JSONResponse(content={"message": "Token refreshed successfully"})
-        response.set_cookie(
-            key="auth_token",
-            value=new_access_token,
-            httponly=True,
-            secure=settings.COOKIE_SECURE,
-            samesite="lax",
-            max_age=60 * 60,  # 1 hour
+        log_security_event(
+            event_type="auth.token.refreshed",
+            message="Access token refreshed successfully",
+            user_id=user_id,
+            ip_address=get_client_ip(request),
+            user_agent=request.headers.get("user-agent"),
+            request_method="POST",
+            request_path="/api/auth/refresh",
+            event_category="authentication",
         )
+
+        # Return new access token with secure cookie settings
+        response = JSONResponse(content={"message": "Token refreshed successfully"})
+        cookie_kwargs = {
+            "httponly": True,
+            "secure": settings.COOKIE_SECURE,
+            "samesite": settings.COOKIE_SAMESITE,
+            "max_age": 60 * 60,  # 1 hour
+        }
+        if settings.COOKIE_DOMAIN:
+            cookie_kwargs["domain"] = settings.COOKIE_DOMAIN
+
+        response.set_cookie(key="auth_token", value=new_access_token, **cookie_kwargs)
 
         return response
 
@@ -272,14 +362,47 @@ async def refresh_access_token(request: Request, db: Session = Depends(get_db)):
         raise
     except Exception as e:
         logger.error(f"Error refreshing token: {e}")
+
+        log_security_event(
+            event_type="auth.token.refresh_failed",
+            message=f"Token refresh failed: {str(e)}",
+            level=logging.WARNING,
+            ip_address=get_client_ip(request),
+            user_agent=request.headers.get("user-agent"),
+            request_method="POST",
+            request_path="/api/auth/refresh",
+            event_category="authentication",
+            error_type=type(e).__name__,
+        )
+
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
         )
 
 
 @router.post("/logout")
-async def logout():
+async def logout(request: Request):
     """Logout endpoint - clears both auth and refresh tokens."""
+    # Try to get user info before clearing tokens
+    try:
+        auth_token = request.cookies.get("auth_token")
+        if auth_token:
+            payload = decode_token(auth_token)
+            user_id = payload.get("sub")
+            log_security_event(
+                event_type="auth.logout.success",
+                message="User logged out successfully",
+                user_id=user_id,
+                ip_address=get_client_ip(request),
+                user_agent=request.headers.get("user-agent"),
+                request_method="POST",
+                request_path="/api/auth/logout",
+                event_category="authentication",
+            )
+    except Exception:
+        # If token is invalid, still proceed with logout
+        pass
+
     response = {"message": "Logged out successfully"}
     from fastapi.responses import JSONResponse
 

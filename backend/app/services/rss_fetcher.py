@@ -12,6 +12,7 @@ import re
 import hashlib
 import os
 from pathlib import Path
+import magic
 
 logger = logging.getLogger(__name__)
 
@@ -311,7 +312,15 @@ class RSSFetcher:
     async def _download_image(
         self, image_url: str, client: httpx.AsyncClient
     ) -> Optional[str]:
-        """Download an image and save it locally, return the local path."""
+        """Download an image with security validation and save it locally.
+
+        Security features:
+        - File size limit enforcement (10MB per file)
+        - Content-Type validation
+        - Magic byte verification (checks actual file type, not just extension)
+        - Total storage quota enforcement (1GB)
+        - Allowed file type whitelist
+        """
         try:
             # Skip if already a local path
             if image_url.startswith("/media/"):
@@ -323,8 +332,9 @@ class RSSFetcher:
             images_dir = Path(settings.MEDIA_ROOT) / "images"
             images_dir.mkdir(parents=True, exist_ok=True)
 
-            # Generate a unique filename based on URL hash
-            url_hash = hashlib.md5(image_url.encode()).hexdigest()
+            # Generate a unique filename based on URL hash using SHA-256
+            # SHA-256 is cryptographically stronger than MD5 and resistant to collision attacks
+            url_hash = hashlib.sha256(image_url.encode()).hexdigest()
 
             # Get file extension from URL or default to .jpg
             ext = os.path.splitext(image_url.split("?")[0])[1]
@@ -336,19 +346,97 @@ class RSSFetcher:
 
             # Check if image already exists
             if filepath.exists():
-                return f"/media/images/{filename}"
+                # Collision detection: Verify the existing file is for the same URL
+                # by checking if a metadata file exists with the original URL
+                metadata_file = filepath.with_suffix(filepath.suffix + ".meta")
+                if metadata_file.exists():
+                    with open(metadata_file, "r") as f:
+                        stored_url = f.read().strip()
+                        if stored_url != image_url:
+                            # Hash collision detected! Add timestamp suffix to make unique
+                            logger.warning(f"Hash collision detected for {image_url}")
+                            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+                            filename = f"{url_hash}_{timestamp}{ext}"
+                            filepath = images_dir / filename
+                        else:
+                            # Same URL, return cached version
+                            return f"/media/images/{filename}"
+                else:
+                    # No metadata file, assume it's the correct file (legacy)
+                    return f"/media/images/{filename}"
 
-            # Download the image
-            response = await client.get(image_url, follow_redirects=True)
-            response.raise_for_status()
+            # Check total storage usage before downloading
+            total_size = sum(
+                f.stat().st_size for f in images_dir.glob("**/*") if f.is_file()
+            )
+            if total_size >= settings.MAX_TOTAL_STORAGE:
+                logger.warning(
+                    f"Storage quota exceeded ({total_size} bytes). Cannot download {image_url}"
+                )
+                return None
+
+            # Download the image with streaming to check size before saving
+            async with client.stream(
+                "GET", image_url, follow_redirects=True
+            ) as response:
+                response.raise_for_status()
+
+                # Validate Content-Type header
+                content_type = response.headers.get("content-type", "").lower()
+                if content_type and not any(
+                    allowed in content_type for allowed in settings.ALLOWED_IMAGE_TYPES
+                ):
+                    logger.warning(
+                        f"Invalid content-type '{content_type}' for {image_url}"
+                    )
+                    return None
+
+                # Read content with size limit
+                content = b""
+                async for chunk in response.aiter_bytes():
+                    content += chunk
+                    if len(content) > settings.MAX_IMAGE_SIZE:
+                        logger.warning(
+                            f"Image too large (>{settings.MAX_IMAGE_SIZE} bytes): {image_url}"
+                        )
+                        return None
+
+            # Validate actual file type using magic bytes
+            mime_type = magic.from_buffer(content, mime=True)
+            if mime_type not in settings.ALLOWED_IMAGE_TYPES:
+                logger.warning(
+                    f"Invalid file type '{mime_type}' (magic bytes) for {image_url}"
+                )
+                return None
+
+            # Additional size check after download
+            if len(content) == 0:
+                logger.warning(f"Empty file downloaded from {image_url}")
+                return None
 
             # Save the image
             with open(filepath, "wb") as f:
-                f.write(response.content)
+                f.write(content)
 
-            logger.debug(f"Downloaded image: {filename}")
+            # Save metadata file for collision detection
+            # This stores the original URL to verify the hash corresponds to the correct source
+            metadata_file = filepath.with_suffix(filepath.suffix + ".meta")
+            with open(metadata_file, "w") as f:
+                f.write(image_url)
+
+            logger.debug(
+                f"Downloaded and validated image: {filename} ({len(content)} bytes, type: {mime_type})"
+            )
             return f"/media/images/{filename}"
 
+        except httpx.HTTPStatusError as e:
+            logger.warning(
+                f"HTTP error downloading image {image_url}: {e.response.status_code}"
+            )
+            return None
+        except httpx.RequestError as e:
+            logger.warning(f"Network error downloading image {image_url}: {str(e)}")
+            return None
         except Exception as e:
             logger.warning(f"Failed to download image {image_url}: {str(e)}")
             return None
