@@ -470,6 +470,9 @@ export default function AllArticlesPage() {
               <th className="text-left p-3 text-sm font-semibold w-32">
                 Status
               </th>
+              <th className="text-left p-3 text-sm font-semibold w-48">
+                Appeared In
+              </th>
               <th className="text-left p-3 text-sm font-semibold w-24">
                 Score
               </th>
@@ -542,6 +545,42 @@ export default function AllArticlesPage() {
                         </span>
                       )}
                     </div>
+                  </td>
+                  <td className="p-3">
+                    {article.newspaper_appearances &&
+                    Object.keys(article.newspaper_appearances).length > 0 ? (
+                      <div className="text-xs text-newspaper-600 space-y-0.5">
+                        {Object.entries(article.newspaper_appearances)
+                          .sort(
+                            ([dateA], [dateB]) =>
+                              new Date(dateB).getTime() -
+                              new Date(dateA).getTime()
+                          )
+                          .map(([date, section]) => {
+                            const formattedDate = new Date(
+                              date
+                            ).toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                            });
+                            const sectionName =
+                              section === "today" ? "Today" : section;
+                            return (
+                              <div
+                                key={date}
+                                className="flex items-center gap-1"
+                              >
+                                <Newspaper className="w-3 h-3 flex-shrink-0" />
+                                <span>
+                                  {formattedDate} ({sectionName})
+                                </span>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-newspaper-400">—</span>
+                    )}
                   </td>
                   <td className="p-3">
                     {article.summary &&
@@ -762,6 +801,39 @@ export default function AllArticlesPage() {
                     </span>
                   )}
                 </div>
+
+                {/* Newspaper Appearances */}
+                {article.newspaper_appearances &&
+                  Object.keys(article.newspaper_appearances).length > 0 && (
+                    <div className="flex items-start gap-2 text-xs">
+                      <Newspaper className="w-3 h-3 text-newspaper-600 mt-0.5 flex-shrink-0" />
+                      <div className="text-newspaper-600">
+                        <span className="font-semibold">Appeared in: </span>
+                        {Object.entries(article.newspaper_appearances)
+                          .sort(
+                            ([dateA], [dateB]) =>
+                              new Date(dateB).getTime() -
+                              new Date(dateA).getTime()
+                          )
+                          .map(([date, section], idx, arr) => {
+                            const formattedDate = new Date(
+                              date
+                            ).toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                            });
+                            const sectionName =
+                              section === "today" ? "Today" : section;
+                            return (
+                              <span key={date}>
+                                {formattedDate} ({sectionName})
+                                {idx < arr.length - 1 && ", "}
+                              </span>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  )}
 
                 {/* Score and Published */}
                 <div className="flex items-center justify-between text-xs text-newspaper-600">
