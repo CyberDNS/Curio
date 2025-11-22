@@ -89,13 +89,21 @@ create_release() {
     
     echo "✅ Tag created: $version"
     echo ""
-    echo "📝 To publish:"
-    echo "   git push origin main --tags"
+    echo "📤 Pushing tag to remote..."
+    git push origin "$version"
+    
+    echo "✅ Tag pushed successfully!"
     echo ""
-    echo "This will trigger GitHub Actions to:"
+    echo "🤖 GitHub Actions will now:"
     echo "   ✓ Run all tests"
-    echo "   ✓ Build Docker images"
-    echo "   ✓ Publish to ghcr.io/cyberdns/curio"
+    echo "   ✓ Build Docker images with version tags:"
+    echo "     • ghcr.io/cyberdns/curio-backend:${version#v}"
+    echo "     • ghcr.io/cyberdns/curio-frontend:${version#v}"
+    echo "     • ghcr.io/cyberdns/curio:${version#v}"
+    echo "   ✓ Also create tags: ${version%.*}, ${version%%.*}, latest"
+    echo ""
+    echo "🔍 Track progress at:"
+    echo "   https://github.com/cyberdns/curio/actions"
 }
 
 show_help() {

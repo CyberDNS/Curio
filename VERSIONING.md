@@ -109,14 +109,27 @@ git push origin v1.0.1
 
 ### What Gets Published
 
-When you push `v1.0.1`, these Docker images are created:
+When you push a version tag like `v1.0.1`, the GitHub Actions workflow automatically creates multiple Docker image tags:
 
 ```
-ghcr.io/cyberdns/curio-backend:v1.0.1   # Exact version
-ghcr.io/cyberdns/curio-backend:v1.0     # Major.minor
-ghcr.io/cyberdns/curio-backend:v1       # Major only
+ghcr.io/cyberdns/curio-backend:1.0.1    # Exact version (no 'v' prefix)
+ghcr.io/cyberdns/curio-backend:1.0      # Major.minor
+ghcr.io/cyberdns/curio-backend:1        # Major only
 ghcr.io/cyberdns/curio-backend:latest   # Latest stable
+ghcr.io/cyberdns/curio-backend:main     # Also tagged with branch name
+
+ghcr.io/cyberdns/curio-frontend:1.0.1
+ghcr.io/cyberdns/curio-frontend:1.0
+ghcr.io/cyberdns/curio-frontend:1
+ghcr.io/cyberdns/curio-frontend:latest
+
+ghcr.io/cyberdns/curio:1.0.1            # Unraid all-in-one
+ghcr.io/cyberdns/curio:1.0
+ghcr.io/cyberdns/curio:1
+ghcr.io/cyberdns/curio:latest
 ```
+
+**Note**: Version tags in Docker images do NOT have the 'v' prefix. Git tags use `v1.0.1`, but Docker images use `1.0.1`.
 
 ## Changelog Management
 
@@ -319,17 +332,54 @@ def get_version():
     return {"version": __version__}
 ```
 
+## Troubleshooting
+
+### "My Docker images only have 'latest' and 'main' tags, not version numbers"
+
+**Problem**: You pushed commits to `main` but didn't push a version tag.
+
+**Solution**: The CI/CD workflow only creates version-tagged images when you push **version tags** (e.g., `v1.0.0`).
+
+```bash
+# Wrong: This only creates 'main' and 'latest' tags
+git push origin main
+
+# Right: This creates version tags (1.0.0, 1.0, 1, latest)
+./version.sh release  # This pushes the version tag
+```
+
+### "How do I check what Docker images exist?"
+
+```bash
+# View on GitHub
+# Go to: https://github.com/cyberdns?tab=packages
+
+# Or use the GitHub API
+curl -s "https://api.github.com/users/cyberdns/packages/container/curio-backend/versions" | \
+  jq -r '.[].metadata.container.tags[]' | sort -V
+```
+
+### "The workflow runs but doesn't publish images"
+
+Check:
+
+1. GitHub Actions has write permissions to packages
+2. You're authenticated to ghcr.io (done automatically in workflows)
+3. The workflow completed successfully (check Actions tab)
+
 ## Summary
 
 **Before every release:**
 
 1. ✅ Run tests locally
-2. ✅ Update VERSION file
+2. ✅ Update VERSION file (`./version.sh bump patch`)
 3. ✅ Update CHANGELOG.md
 4. ✅ Commit version changes
-5. ✅ Create annotated git tag
-6. ✅ Push to trigger CI/CD
-7. ✅ Verify Docker images published
+5. ✅ Push commits: `git push origin main`
+6. ✅ Create and push tag: `./version.sh release` (automatically pushes tag)
+7. ✅ Verify Docker images published at https://github.com/cyberdns?tab=packages
 8. ✅ Create GitHub release (optional)
 
-The `scripts/version.sh` tool automates most of this!
+**Key Point**: Version-tagged Docker images are ONLY created when you push version tags (via `./version.sh release`), not when you push to main.
+
+The `version.sh` tool automates most of this!
