@@ -36,17 +36,20 @@ Curio is a self-hosted, personalized news aggregator that fetches content from y
 ### Installation
 
 1. **Clone the repository:**
+
    ```bash
    git clone https://github.com/yourusername/curio.git
    cd curio
    ```
 
 2. **Create environment file:**
+
    ```bash
    cp .env.example .env
    ```
 
 3. **Edit `.env` and add your configuration:**
+
    ```env
    # Required: Add your OpenAI API key
    OPENAI_API_KEY=sk-your-api-key-here
@@ -58,6 +61,7 @@ Curio is a self-hosted, personalized news aggregator that fetches content from y
    ```
 
 4. **Start the application:**
+
    ```bash
    docker-compose up -d
    ```
@@ -91,14 +95,19 @@ This project includes a complete devcontainer setup for VSCode:
 ### Manual Development Setup
 
 **Backend:**
+
 ```bash
 cd backend
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
-# Set up database
-export DATABASE_URL="postgresql://curio:curio@localhost:5432/curio"
+# Set up database environment variables
+export POSTGRES_USER="curio"
+export POSTGRES_PASSWORD="curio"
+export POSTGRES_HOST="localhost"
+export POSTGRES_PORT="5432"
+export POSTGRES_DB="curio"
 alembic upgrade head
 
 # Run development server
@@ -106,6 +115,7 @@ uvicorn app.main:app --reload
 ```
 
 **Frontend:**
+
 ```bash
 cd frontend
 npm install
@@ -153,15 +163,15 @@ curio/
 
 ### Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `OPENAI_API_KEY` | OpenAI API key (required) | - |
-| `LLM_MODEL` | OpenAI model to use | `gpt-4-turbo-preview` |
-| `POSTGRES_PASSWORD` | Database password | `curio` |
-| `SECRET_KEY` | App secret key | `change-me-in-production` |
-| `RSS_FETCH_INTERVAL` | Minutes between feed updates | `60` |
-| `BACKEND_PORT` | Backend port | `8000` |
-| `FRONTEND_PORT` | Frontend port | `3000` |
+| Variable             | Description                  | Default                   |
+| -------------------- | ---------------------------- | ------------------------- |
+| `OPENAI_API_KEY`     | OpenAI API key (required)    | -                         |
+| `LLM_MODEL`          | OpenAI model to use          | `gpt-4-turbo-preview`     |
+| `POSTGRES_PASSWORD`  | Database password            | `curio`                   |
+| `SECRET_KEY`         | App secret key               | `change-me-in-production` |
+| `RSS_FETCH_INTERVAL` | Minutes between feed updates | `60`                      |
+| `BACKEND_PORT`       | Backend port                 | `8000`                    |
+| `FRONTEND_PORT`      | Frontend port                | `3000`                    |
 
 ### AI Prompt Customization
 

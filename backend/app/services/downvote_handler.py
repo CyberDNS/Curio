@@ -72,7 +72,7 @@ class DownvoteHandler:
 
         # If we have fewer articles than max_prototypes, use all as prototypes
         if len(embeddings) <= max_prototypes:
-            logger.info(
+            logger.debug(
                 f"User {self.user_id}: Using all {len(embeddings)} downvoted articles as prototypes"
             )
             return [emb for emb in embeddings_array]
@@ -83,7 +83,7 @@ class DownvoteHandler:
         )  # At least 3 articles per cluster
         n_clusters = max(1, n_clusters)  # At least 1 cluster
 
-        logger.info(
+        logger.debug(
             f"User {self.user_id}: Computing {n_clusters} prototypes from {len(embeddings)} downvoted articles"
         )
 
@@ -187,12 +187,19 @@ class DownvoteHandler:
             return False
 
         # Apply progressive penalty based on similarity threshold
-        # Similarity > 0.80 = very similar, apply penalty
-        SIMILARITY_THRESHOLD = 0.80
+        # Use configurable thresholds from settings
+        SIMILARITY_THRESHOLD = settings.DOWNVOTE_SIMILARITY_THRESHOLD
+        MAX_PENALTY = settings.DOWNVOTE_MAX_PENALTY
 
         if max_similarity > SIMILARITY_THRESHOLD:
-            # Scale penalty: similarity 0.80 -> penalty ~0, similarity 1.0 -> penalty ~0.4
-            penalty = min(0.4, (max_similarity - SIMILARITY_THRESHOLD) * 2.0)
+            # Scale penalty progressively: at threshold -> penalty ~0, at 1.0 -> MAX_PENALTY
+            # Formula: penalty scales from 0 to MAX_PENALTY as similarity goes from threshold to 1.0
+            penalty = min(
+                MAX_PENALTY,
+                (max_similarity - SIMILARITY_THRESHOLD)
+                / (1.0 - SIMILARITY_THRESHOLD)
+                * MAX_PENALTY,
+            )
             adjusted_score = max(0.0, article.relevance_score - penalty)
 
             # Store adjustment
@@ -212,10 +219,9 @@ class DownvoteHandler:
                     f"Similar to downvoted content (similarity: {max_similarity:.0%})"
                 )
 
-            logger.info(
-                f"Article {article.id} ({article.llm_title or article.title[:50]}): "
-                f"similarity={max_similarity:.3f}, penalty={penalty:.3f}, "
-                f"{article.relevance_score:.2f} → {adjusted_score:.2f}"
+            logger.debug(
+                f"Article {article.id} penalty: similarity={max_similarity:.3f}, "
+                f"penalty={penalty:.3f}, {article.relevance_score:.2f} → {adjusted_score:.2f}"
             )
 
             return True

@@ -73,16 +73,54 @@ export default function AppSettings() {
               <p className="text-xs font-semibold text-newspaper-600 mb-2">
                 Preview:
               </p>
-              <div className="border border-newspaper-300 p-4 bg-newspaper-50 text-center">
-                <h1 className="newspaper-heading text-4xl tracking-tighter">
-                  {newspaperTitle || "CURIO"}
-                </h1>
-                {newspaperTitle && (
-                  <p className="text-xs text-newspaper-500 mt-1">by Curio</p>
-                )}
-                <p className="text-xs mt-1 text-newspaper-600 font-serif italic">
-                  Your Personalized News Digest
-                </p>
+              <div className="border border-newspaper-300 p-4 bg-newspaper-50">
+                <div className="flex flex-col items-center">
+                  {/* Top line */}
+                  <div className="w-full border-t border-newspaper-900 mb-2"></div>
+
+                  {/* Logo and title row */}
+                  <div className="relative w-full mb-2">
+                    {/* Left side: Logo and ornament */}
+                    <div className="absolute left-0 top-0 flex items-center gap-2">
+                      <img
+                        src="/logo.png"
+                        alt="Curio Logo"
+                        className="w-12 h-12 object-contain"
+                      />
+                      {/* Ornament */}
+                      <div className="flex flex-col items-center flex-shrink-0">
+                        <div className="w-8 h-px bg-newspaper-900 mb-0.5"></div>
+                        <div className="w-6 h-px bg-newspaper-900 mb-0.5"></div>
+                        <div className="w-4 h-px bg-newspaper-900"></div>
+                      </div>
+                    </div>
+
+                    {/* Main title - centered */}
+                    <div className="text-center px-20">
+                      <h1 className="newspaper-heading text-3xl tracking-tighter leading-none">
+                        {newspaperTitle || "Curio Times"}
+                      </h1>
+                      <p className="text-xs mt-0.5 text-newspaper-600 font-serif italic">
+                        Your Personalized News Digest
+                      </p>
+                    </div>
+
+                    {/* Right side: Ornament and spacer */}
+                    <div className="absolute right-0 top-0 flex items-center gap-2">
+                      {/* Ornament */}
+                      <div className="flex flex-col items-center flex-shrink-0">
+                        <div className="w-8 h-px bg-newspaper-900 mb-0.5"></div>
+                        <div className="w-6 h-px bg-newspaper-900 mb-0.5"></div>
+                        <div className="w-4 h-px bg-newspaper-900"></div>
+                      </div>
+                      {/* Invisible spacer */}
+                      <div className="w-12 h-12"></div>
+                    </div>
+                  </div>
+
+                  {/* Bottom line */}
+                  <div className="w-full border-b border-newspaper-900"></div>
+                </div>
               </div>
             </div>
           </div>

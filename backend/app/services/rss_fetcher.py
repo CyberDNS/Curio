@@ -79,7 +79,7 @@ class RSSFetcher:
                 articles.append(article_data)
 
             self.db.commit()
-            logger.info(f"Fetched {len(articles)} articles from {feed.url}")
+            logger.debug(f"Fetched {len(articles)} articles from {feed.url}")
             return articles
 
         except Exception as e:
@@ -346,7 +346,7 @@ class RSSFetcher:
             with open(filepath, "wb") as f:
                 f.write(response.content)
 
-            logger.info(f"Downloaded image: {filename}")
+            logger.debug(f"Downloaded image: {filename}")
             return f"/media/images/{filename}"
 
         except Exception as e:

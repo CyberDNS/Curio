@@ -221,7 +221,7 @@ class DuplicateDetector:
         similar_articles = self.find_similar_articles(article)
 
         if not similar_articles:
-            logger.info(f"No duplicates found for article {article.id}")
+            logger.debug(f"No duplicates found for article {article.id}")
             return None
 
         # Get the best match (highest similarity, highest score, or earliest)

@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   app:
@@ -12,7 +12,11 @@ services:
     depends_on:
       - db
     environment:
-      - DATABASE_URL=postgresql://curio:curio@localhost:5432/curio
+      - POSTGRES_USER=curio
+      - POSTGRES_PASSWORD=curio
+      - POSTGRES_HOST=localhost
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=curio
       - PYTHONPATH=/workspace/backend
 
   db:
@@ -33,9 +37,9 @@ services:
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@curio.com
       PGADMIN_DEFAULT_PASSWORD: admin
-      PGADMIN_CONFIG_SERVER_MODE: 'False'
-      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
-      PGADMIN_CONFIG_CHECK_EMAIL_DELIVERABILITY: 'False'
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+      PGADMIN_CONFIG_CHECK_EMAIL_DELIVERABILITY: "False"
     volumes:
       - pgadmin-data:/var/lib/pgadmin
     ports:

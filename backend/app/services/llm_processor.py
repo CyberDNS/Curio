@@ -283,18 +283,18 @@ User's Interests:
 Analyze and provide comprehensive JSON output."""
 
         try:
-            # Log the request
-            logger.info("=" * 80)
-            logger.info("LLM REQUEST - Article Analysis")
-            logger.info(f"Article ID: {article.id}")
-            logger.info(f"Model: {settings.LLM_MODEL}")
-            logger.info("-" * 80)
-            logger.info("SYSTEM PROMPT:")
-            logger.info(system_prompt)
-            logger.info("-" * 80)
-            logger.info("USER PROMPT:")
-            logger.info(user_prompt)
-            logger.info("=" * 80)
+            # Log the request (DEBUG level for details)
+            logger.debug("=" * 80)
+            logger.debug("LLM REQUEST - Article Analysis")
+            logger.debug(f"Article ID: {article.id}")
+            logger.debug(f"Model: {settings.LLM_MODEL}")
+            logger.debug("-" * 80)
+            logger.debug("SYSTEM PROMPT:")
+            logger.debug(system_prompt)
+            logger.debug("-" * 80)
+            logger.debug("USER PROMPT:")
+            logger.debug(user_prompt)
+            logger.debug("=" * 80)
 
             response = await self.client.chat.completions.create(
                 model=settings.LLM_MODEL,
@@ -307,18 +307,18 @@ Analyze and provide comprehensive JSON output."""
 
             result = json.loads(response.choices[0].message.content)
 
-            # Log the response
-            logger.info("=" * 80)
-            logger.info("LLM RESPONSE - Article Analysis")
-            logger.info(f"Article ID: {article.id}")
-            logger.info(f"Usage: {response.usage}")
-            logger.info("-" * 80)
-            logger.info("RAW RESPONSE:")
-            logger.info(response.choices[0].message.content)
-            logger.info("-" * 80)
-            logger.info("PARSED RESULT:")
-            logger.info(json.dumps(result, indent=2))
-            logger.info("=" * 80)
+            # Log the response (DEBUG level for details)
+            logger.debug("=" * 80)
+            logger.debug("LLM RESPONSE - Article Analysis")
+            logger.debug(f"Article ID: {article.id}")
+            logger.debug(f"Usage: {response.usage}")
+            logger.debug("-" * 80)
+            logger.debug("RAW RESPONSE:")
+            logger.debug(response.choices[0].message.content)
+            logger.debug("-" * 80)
+            logger.debug("PARSED RESULT:")
+            logger.debug(json.dumps(result, indent=2))
+            logger.debug("=" * 80)
 
             return result
 

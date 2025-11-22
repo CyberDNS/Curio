@@ -1,6 +1,7 @@
 # Deployment Guide
 
 ## Table of Contents
+
 - [Docker Compose](#docker-compose)
 - [Unraid](#unraid)
 - [Home Assistant](#home-assistant)
@@ -12,12 +13,14 @@
 ### Production Deployment
 
 1. **Prepare environment:**
+
    ```bash
    cp .env.example .env
    nano .env  # Edit with your settings
    ```
 
 2. **Important: Set secure values:**
+
    ```env
    POSTGRES_PASSWORD=your-very-secure-password
    SECRET_KEY=generate-a-random-secret-key
@@ -25,11 +28,13 @@
    ```
 
 3. **Start services:**
+
    ```bash
    docker-compose up -d
    ```
 
 4. **View logs:**
+
    ```bash
    docker-compose logs -f
    ```
@@ -52,11 +57,13 @@ docker-compose up -d --build
 ### Template Installation
 
 1. **Add Custom Repository**
+
    - Go to **Docker** tab
    - Click **Add Container**
    - Toggle **Advanced View**
 
 2. **Configuration:**
+
    ```
    Name: Curio
    Repository: yourusername/curio:latest
@@ -94,6 +101,7 @@ docker-compose up -d
 ### Add-on Installation
 
 1. **Create add-on structure:**
+
    ```
    /addons/curio/
    ├── config.json
@@ -103,6 +111,7 @@ docker-compose up -d
    ```
 
 2. **config.json:**
+
    ```json
    {
      "name": "Curio News Aggregator",
@@ -136,6 +145,7 @@ docker-compose up -d
    ```
 
 3. **run.sh:**
+
    ```bash
    #!/usr/bin/with-contenv bashio
 
@@ -156,6 +166,7 @@ docker-compose up -d
 ## Manual Deployment
 
 ### Requirements
+
 - Python 3.12+
 - Node.js 20+
 - PostgreSQL 16+
@@ -173,7 +184,11 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 # Set environment variables
-export DATABASE_URL="postgresql://user:pass@localhost:5432/curio"
+export POSTGRES_USER="curio"
+export POSTGRES_PASSWORD="your-password"
+export POSTGRES_HOST="localhost"
+export POSTGRES_PORT="5432"
+export POSTGRES_DB="curio"
 export OPENAI_API_KEY="sk-your-key"
 export SECRET_KEY="your-secret"
 
@@ -412,7 +427,7 @@ docker-compose restart backend
 docker-compose exec db pg_isready
 
 # Check environment variables
-docker-compose exec backend env | grep DATABASE_URL
+docker-compose exec backend env | grep POSTGRES
 ```
 
 ### Permission issues

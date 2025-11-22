@@ -23,24 +23,67 @@ export default function Header() {
     refetchInterval: 60000,
   });
 
-  const newspaperTitle = titleSetting?.value || "CURIO";
+  const newspaperTitle = titleSetting?.value || "Curio Times";
 
   return (
     <header className="border-b-4 border-newspaper-900 bg-white">
-      <div className="container mx-auto px-4 py-6">
+      <div className="container mx-auto px-4 py-4">
         {/* Masthead */}
-        <div className="text-center mb-4">
-          <Link to="/">
-            <h1 className="newspaper-heading text-6xl md:text-7xl lg:text-8xl tracking-tighter">
-              {newspaperTitle}
-            </h1>
-            {newspaperTitle !== "CURIO" && (
-              <p className="text-xs text-newspaper-500 mt-1">by Curio</p>
-            )}
-            <p className="text-sm mt-1 text-newspaper-600 font-serif italic">
-              Your Personalized News Digest
-            </p>
-          </Link>
+        <div className="mb-3">
+          <div className="text-center">
+            <div className="flex flex-col items-center">
+              {/* Top decorative line */}
+              <div className="w-full border-t border-newspaper-900 mb-3"></div>
+
+              {/* Logo and title row */}
+              <div className="relative w-full mb-2">
+                {/* Left side: Logo and ornament */}
+                <div className="absolute left-0 top-0 flex items-center gap-4">
+                  {/* Logo */}
+                  <Link to="/" className="flex-shrink-0">
+                    <img
+                      src="/logo.png"
+                      alt="Curio Logo"
+                      className="w-20 h-20 md:w-24 md:h-24 object-contain"
+                    />
+                  </Link>
+
+                  {/* Left ornamental element */}
+                  <div className="hidden md:flex flex-col items-center flex-shrink-0">
+                    <div className="w-16 h-px bg-newspaper-900 mb-1"></div>
+                    <div className="w-12 h-px bg-newspaper-900 mb-1"></div>
+                    <div className="w-8 h-px bg-newspaper-900"></div>
+                  </div>
+                </div>
+
+                {/* Main title - centered */}
+                <div className="text-center px-32 md:px-40">
+                  <h1 className="newspaper-heading text-5xl md:text-6xl lg:text-7xl tracking-tighter leading-none">
+                    {newspaperTitle}
+                  </h1>
+                  <p className="text-sm mt-1 text-newspaper-600 font-serif italic">
+                    Your Personalized News Digest
+                  </p>
+                </div>
+
+                {/* Right side: Ornament and invisible logo spacer */}
+                <div className="absolute right-0 top-0 flex items-center gap-4">
+                  {/* Right ornamental element */}
+                  <div className="hidden md:flex flex-col items-center flex-shrink-0">
+                    <div className="w-16 h-px bg-newspaper-900 mb-1"></div>
+                    <div className="w-12 h-px bg-newspaper-900 mb-1"></div>
+                    <div className="w-8 h-px bg-newspaper-900"></div>
+                  </div>
+
+                  {/* Invisible spacer to maintain centering */}
+                  <div className="flex-shrink-0 w-20 h-20 md:w-24 md:h-24"></div>
+                </div>
+              </div>
+
+              {/* Bottom decorative line */}
+              <div className="w-full border-b border-newspaper-900"></div>
+            </div>
+          </div>
         </div>
 
         {/* Date and actions */}

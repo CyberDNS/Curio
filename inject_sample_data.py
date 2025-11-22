@@ -37,37 +37,16 @@ TEST_FEEDS = [
 
 def get_db_connection():
     """Get PostgreSQL database connection from environment."""
-    db_url = os.getenv("DATABASE_URL", "postgresql://curio:curio@localhost:5432/curio")
-
-    # Parse the DATABASE_URL
-    # Format: postgresql://user:password@host:port/database
-    if db_url.startswith("postgresql://"):
-        db_url = db_url.replace("postgresql://", "")
-
-        if "@" in db_url:
-            user_pass, host_db = db_url.split("@")
-            user, password = user_pass.split(":")
-            host_port, database = host_db.split("/")
-
-            if ":" in host_port:
-                host, port = host_port.split(":")
-            else:
-                host = host_port
-                port = "5432"
-        else:
-            print("❌ Invalid DATABASE_URL format")
-            sys.exit(1)
-    else:
-        print("❌ DATABASE_URL must start with postgresql://")
-        sys.exit(1)
+    # Get database configuration from environment variables
+    user = os.getenv("POSTGRES_USER", "curio")
+    password = os.getenv("POSTGRES_PASSWORD", "curio")
+    host = os.getenv("POSTGRES_HOST", "localhost")
+    port = os.getenv("POSTGRES_PORT", "5432")
+    database = os.getenv("POSTGRES_DB", "curio")
 
     try:
         conn = psycopg2.connect(
-            host=host,
-            port=port,
-            database=database,
-            user=user,
-            password=password
+            host=host, port=port, database=database, user=user, password=password
         )
         return conn
     except psycopg2.OperationalError as e:
@@ -102,7 +81,7 @@ def inject_test_feeds():
             # Check if feed already exists
             cursor.execute(
                 "SELECT id FROM feeds WHERE url = %s AND user_id = %s",
-                (feed_data["url"], user_id)
+                (feed_data["url"], user_id),
             )
             existing = cursor.fetchone()
 
@@ -126,8 +105,8 @@ def inject_test_feeds():
                     True,  # is_active
                     now,
                     now,
-                    60  # fetch_interval in minutes
-                )
+                    60,  # fetch_interval in minutes
+                ),
             )
 
             feed_id = cursor.fetchone()[0]

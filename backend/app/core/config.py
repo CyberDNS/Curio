@@ -5,15 +5,30 @@ from pydantic import field_validator
 
 class Settings(BaseSettings):
     # Database
-    DATABASE_URL: str
+    POSTGRES_USER: str = "curio"
+    POSTGRES_PASSWORD: str
+    POSTGRES_HOST: str = "localhost"
+    POSTGRES_PORT: int = 5432
+    POSTGRES_DB: str = "curio"
+
+    @property
+    def DATABASE_URL(self) -> str:
+        """Construct database URL from components."""
+        return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
     # LLM
     OPENAI_API_KEY: str
-    LLM_MODEL: str = "gpt-4-turbo-preview"
+    LLM_MODEL: str = "gpt-5-nano"
 
     # Embeddings for duplicate detection
     EMBEDDING_MODEL: str = "text-embedding-3-small"
     DUPLICATE_SIMILARITY_THRESHOLD: float = 0.85
+
+    # Downvote filtering
+    DOWNVOTE_SIMILARITY_THRESHOLD: float = (
+        0.80  # Similarity threshold to trigger penalty
+    )
+    DOWNVOTE_MAX_PENALTY: float = 0.4  # Maximum score reduction (0.0 to 1.0)
 
     # Application
     SECRET_KEY: str

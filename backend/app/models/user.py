@@ -32,4 +32,3 @@ class User(Base):
     categories = relationship("Category", back_populates="user")
     settings = relationship("UserSettings", back_populates="user")
     newspapers = relationship("Newspaper", back_populates="user")
-    tags = relationship("Tag", back_populates="user")

@@ -185,7 +185,7 @@ async def logout():
 @router.get("/me")
 async def get_current_user_info(current_user: User = Depends(get_current_user)):
     """Get current user information."""
-    logger.info(
+    logger.debug(
         f"Get user info for user ID: {current_user.id}, email: {current_user.email}"
     )
     return {
@@ -201,7 +201,7 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
 async def debug_token(request: Request):
     """Debug endpoint to check token in request."""
     auth_header = request.headers.get("Authorization")
-    logger.info(f"Authorization header: {auth_header}")
+    logger.debug(f"Authorization header: {auth_header}")
     return {
         "has_auth_header": auth_header is not None,
         "auth_header": auth_header,
