@@ -22,5 +22,5 @@ class Feed(Base):
     # Relationships
     user = relationship("User", back_populates="feeds")
     articles = relationship(
-        "Article", back_populates="feed", cascade="all, delete-orphan"
-    )
+        "Article", back_populates="feed"
+    )  # No cascade delete: articles remain when feed is deleted

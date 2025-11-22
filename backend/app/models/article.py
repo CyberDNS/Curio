@@ -19,7 +19,7 @@ class Article(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    feed_id = Column(Integer, ForeignKey("feeds.id"), nullable=False)
+    feed_id = Column(Integer, ForeignKey("feeds.id"), nullable=True)  # Nullable: articles remain when feed is deleted
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
 
     # Original article data from RSS
@@ -52,7 +52,7 @@ class Article(Base):
     # Duplicate detection
     is_duplicate = Column(Boolean, default=False)  # True if article is a duplicate
     duplicate_of_id = Column(
-        Integer, ForeignKey("articles.id"), nullable=True
+        Integer, ForeignKey("articles.id", ondelete="SET NULL"), nullable=True
     )  # Points to the best/original article
     # Store embeddings as JSON text - compatible with all PostgreSQL installations
     title_embedding = Column(
@@ -81,4 +81,8 @@ class Article(Base):
     @property
     def feed_source_title(self):
         """Dynamic property to get feed source title from relationship."""
-        return self.feed.source_title if self.feed else None
+        if self.feed:
+            return self.feed.source_title
+        elif self.feed_id is None:
+            return "Nonexistent feed"  # Feed was deleted
+        return None

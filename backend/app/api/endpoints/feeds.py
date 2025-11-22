@@ -99,7 +99,9 @@ def delete_feed(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Delete a feed for the current user."""
+    """Delete a feed for the current user. Articles remain but their feed_id is set to None."""
+    from app.models.article import Article
+
     feed = (
         db.query(Feed)
         .filter(Feed.id == feed_id, Feed.user_id == current_user.id)
@@ -107,6 +109,11 @@ def delete_feed(
     )
     if not feed:
         raise HTTPException(status_code=404, detail="Feed not found")
+
+    # Set feed_id to None for all articles from this feed
+    db.query(Article).filter(Article.feed_id == feed_id).update(
+        {"feed_id": None}, synchronize_session=False
+    )
 
     db.delete(feed)
     db.commit()

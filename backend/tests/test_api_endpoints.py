@@ -188,13 +188,62 @@ class TestFeedsAPI:
         assert data["source_title"] == "New Source Title"
 
     def test_delete_feed(self, authenticated_client, test_feed, db_session):
-        """Test deleting a feed."""
+        """Test deleting a feed - articles should remain but feed should be deleted."""
+        from app.models.feed import Feed
+        from app.models.article import Article
+
+        # Create some articles for the feed
+        article1 = Article(
+            user_id=test_feed.user_id,
+            feed_id=test_feed.id,
+            title="Test Article 1",
+            link="https://example.com/article1",
+            description="Test description 1",
+        )
+        article2 = Article(
+            user_id=test_feed.user_id,
+            feed_id=test_feed.id,
+            title="Test Article 2",
+            link="https://example.com/article2",
+            description="Test description 2",
+        )
+        db_session.add(article1)
+        db_session.add(article2)
+        db_session.commit()
+
+        article1_id = article1.id
+        article2_id = article2.id
+
+        # Delete the feed
         response = authenticated_client.delete(f"/api/feeds/{test_feed.id}")
 
         assert response.status_code == 200
 
         # Verify feed is deleted
-        from app.models.feed import Feed
-
         deleted_feed = db_session.query(Feed).filter(Feed.id == test_feed.id).first()
         assert deleted_feed is None
+
+        # Verify articles still exist but feed_id is now None
+        remaining_article1 = (
+            db_session.query(Article).filter(Article.id == article1_id).first()
+        )
+        remaining_article2 = (
+            db_session.query(Article).filter(Article.id == article2_id).first()
+        )
+
+        assert remaining_article1 is not None, "Article 1 should not be deleted"
+        assert remaining_article2 is not None, "Article 2 should not be deleted"
+        assert (
+            remaining_article1.feed_id is None
+        ), "Article 1 feed_id should be set to None"
+        assert (
+            remaining_article2.feed_id is None
+        ), "Article 2 feed_id should be set to None"
+
+        # Verify feed_source_title shows "Nonexistent feed"
+        assert (
+            remaining_article1.feed_source_title == "Nonexistent feed"
+        ), "Article should show 'Nonexistent feed' as source"
+        assert (
+            remaining_article2.feed_source_title == "Nonexistent feed"
+        ), "Article should show 'Nonexistent feed' as source"
