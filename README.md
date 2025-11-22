@@ -280,6 +280,40 @@ docker-compose up -d
 docker-compose exec backend alembic upgrade head
 ```
 
+## Testing
+
+Curio includes comprehensive test suites for both backend and frontend:
+
+### Quick Start
+
+```bash
+# Run all tests
+make test
+
+# Run backend tests only
+make test-backend
+
+# Run frontend tests only
+make test-frontend
+
+# Generate coverage reports
+make test-coverage
+
+# Or use the convenience script
+./run-tests.sh           # Run all tests
+./run-tests.sh backend   # Backend only
+./run-tests.sh frontend  # Frontend only
+./run-tests.sh coverage  # With coverage
+```
+
+### Test Coverage
+
+- **Backend**: Unit tests, integration tests, API endpoint tests
+- **Frontend**: Hook tests, component tests, utility tests
+- **CI/CD**: Automated testing via GitHub Actions
+
+For detailed testing documentation, see [TESTING.md](TESTING.md) and [TESTS_SUMMARY.md](TESTS_SUMMARY.md).
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.

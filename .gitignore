@@ -59,6 +59,14 @@ frontend/dist/
 .coverage
 .pytest_cache/
 htmlcov/
+coverage.xml
+*.cover
+.hypothesis/
+.vitest/
+frontend/coverage/
+backend/coverage/
+test-results/
+playwright-report/
 
 # Media files (stored in Docker volume)
 media/
