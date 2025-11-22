@@ -100,17 +100,14 @@ export default function AllArticlesPage() {
 
   const fullUpdateMutation = useMutation({
     mutationFn: runFullUpdate,
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["articles"] });
       queryClient.invalidateQueries({ queryKey: ["newspaper"] });
       queryClient.invalidateQueries({ queryKey: ["newspapers"] });
+      
       alert(
-        `Update completed!\n\n` +
-          `• ${data.new_articles} new articles fetched\n` +
-          `• ${data.processed_articles} articles processed\n` +
-          `• ${data.archived_articles} articles archived\n` +
-          `• ${data.today_count} articles on Today page\n` +
-          `• ${data.category_count} categories updated`
+        "Full update started in the background.\n\n" +
+        "This may take a few minutes. Refresh the page to see new articles."
       );
     },
     onError: (error) => {
@@ -269,19 +266,7 @@ export default function AllArticlesPage() {
       <div className="flex items-center gap-3 flex-wrap">
         <button
           onClick={() => {
-            if (
-              confirm(
-                "This will:\n" +
-                  "• Fetch new articles from all RSS feeds\n" +
-                  "• Process new articles with AI\n" +
-                  "• Regenerate today's newspaper\n\n" +
-                  "This process runs in the background and may take several minutes.\n" +
-                  "You can continue using the app while it runs.\n\n" +
-                  "Continue?"
-              )
-            ) {
-              fullUpdateMutation.mutate();
-            }
+            fullUpdateMutation.mutate();
           }}
           disabled={fullUpdateMutation.isPending}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
