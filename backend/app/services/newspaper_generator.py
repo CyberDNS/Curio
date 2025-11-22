@@ -143,7 +143,7 @@ class NewspaperGenerator:
 
         # Curate articles using rule-based algorithm
         newspaper_structure = self._curate_articles_rule_based(
-            new_articles, categories, existing_newspaper
+            new_articles, categories, existing_newspaper, target_date
         )
 
         # Save newspaper (create or update)
@@ -158,6 +158,7 @@ class NewspaperGenerator:
         new_articles: List[Article],
         categories: List[Category],
         existing_newspaper: Optional[Newspaper] = None,
+        target_date: Optional[date] = None,
     ) -> Dict:
         """
         Rule-based curation algorithm.
@@ -211,17 +212,29 @@ class NewspaperGenerator:
 
         # STEP 2: Apply base filters
         # - Must meet minimum score threshold
-        # - Must either never appeared before OR still be unread
-        eligible_articles = [
-            a
-            for a in all_articles
-            if (a.adjusted_relevance_score or a.relevance_score or 0.0)
-            >= MIN_NEWSPAPER_SCORE
-            and (
-                not a.newspaper_appearances  # Never appeared before
-                or not a.is_read  # Or appeared but still unread
-            )
-        ]
+        # - Exclude articles that appeared in PREVIOUS editions (not today) AND are read
+        if target_date is None:
+            target_date = datetime.now().date()
+        target_date_str = target_date.isoformat()
+
+        eligible_articles = []
+        for a in all_articles:
+            # Check score threshold
+            score = a.adjusted_relevance_score or a.relevance_score or 0.0
+            if score < MIN_NEWSPAPER_SCORE:
+                continue
+
+            # Check if article appeared in previous editions and is read
+            if a.newspaper_appearances and a.is_read:
+                # Get all dates this article appeared in (excluding today)
+                previous_dates = [
+                    d for d in a.newspaper_appearances.keys() if d != target_date_str
+                ]
+                if previous_dates:
+                    # Article appeared in previous editions and is now read - exclude it
+                    continue
+
+            eligible_articles.append(a)
 
         logger.info(
             f"After filtering: {len(eligible_articles)} eligible articles "
