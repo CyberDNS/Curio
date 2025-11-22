@@ -275,6 +275,8 @@ export default function AllArticlesPage() {
                   "• Fetch new articles from all RSS feeds\n" +
                   "• Process new articles with AI\n" +
                   "• Regenerate today's newspaper\n\n" +
+                  "This process runs in the background and may take several minutes.\n" +
+                  "You can continue using the app while it runs.\n\n" +
                   "Continue?"
               )
             ) {
@@ -283,7 +285,7 @@ export default function AllArticlesPage() {
           }}
           disabled={fullUpdateMutation.isPending}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          title="Run full update: fetch feeds, process articles, regenerate newspaper"
+          title="Run full update: fetch feeds, process articles, regenerate newspaper (runs in background)"
         >
           <Newspaper
             className={`w-4 h-4 ${
@@ -291,7 +293,7 @@ export default function AllArticlesPage() {
             }`}
           />
           {fullUpdateMutation.isPending
-            ? "Updating..."
+            ? "Starting..."
             : "Update & Regenerate Today"}
         </button>
         {selectedForComparison.size > 0 && (

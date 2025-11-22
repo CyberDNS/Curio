@@ -192,13 +192,18 @@ export const reprocessArticle = async (
 
 export const runFullUpdate = async (): Promise<{
   message: string;
-  new_articles: number;
-  archived_articles: number;
-  processed_articles: number;
-  today_count: number;
-  category_count: number;
+  status?: string;
+  new_articles?: number;
+  archived_articles?: number;
+  processed_articles?: number;
+  today_count?: number;
+  category_count?: number;
 }> => {
-  const { data } = await api.post("/actions/run-full-update");
+  // Extended timeout for long-running operation (5 minutes)
+  // Note: This operation now runs in background and returns immediately
+  const { data } = await api.post("/actions/run-full-update", null, {
+    timeout: 300000, // 5 minutes fallback
+  });
   return data;
 };
 

@@ -68,7 +68,7 @@ describe("FeedSettings", () => {
       // Setup
       vi.mocked(api.getFeeds).mockResolvedValue(mockFeeds);
       vi.mocked(api.deleteFeed).mockResolvedValue(undefined);
-      
+
       // Mock window.confirm to return true
       const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
 
@@ -89,9 +89,7 @@ describe("FeedSettings", () => {
       await user.click(deleteButtons[0]);
 
       // Verify confirmation dialog was shown
-      expect(confirmSpy).toHaveBeenCalledWith(
-        'Delete feed "Test Feed 1"?'
-      );
+      expect(confirmSpy).toHaveBeenCalledWith('Delete feed "Test Feed 1"?');
 
       // Verify deleteFeed was called with correct ID
       await waitFor(() => {
@@ -107,7 +105,7 @@ describe("FeedSettings", () => {
       // Setup
       vi.mocked(api.getFeeds).mockResolvedValue(mockFeeds);
       vi.mocked(api.deleteFeed).mockResolvedValue(undefined);
-      
+
       // Mock window.confirm to return false
       const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
 
@@ -140,10 +138,10 @@ describe("FeedSettings", () => {
       vi.mocked(api.deleteFeed).mockRejectedValue(
         new Error("Failed to delete feed")
       );
-      
+
       // Mock window.confirm to return true
       const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
-      
+
       // Mock console.error to suppress error output in test
       const consoleErrorSpy = vi
         .spyOn(console, "error")
@@ -186,7 +184,7 @@ describe("FeedSettings", () => {
 
       vi.mocked(api.getFeeds).mockResolvedValue(mockFeeds);
       vi.mocked(api.deleteFeed).mockReturnValue(deletePromise);
-      
+
       const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
 
       const user = userEvent.setup();
