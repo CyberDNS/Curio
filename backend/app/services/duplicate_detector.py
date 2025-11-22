@@ -227,10 +227,16 @@ class DuplicateDetector:
         # Get the best match (highest similarity, highest score, or earliest)
         original_article = self._select_best_original(article, similar_articles)
 
-        # Mark this article as duplicate
-        self.mark_as_duplicate(article, original_article)
-
-        return original_article
+        # Only mark as duplicate if the original is different from this article
+        if original_article.id != article.id:
+            # Mark this article as duplicate
+            self.mark_as_duplicate(article, original_article)
+            return original_article
+        else:
+            # This article is the best - mark the others as duplicates of this one
+            for similar_article, _ in similar_articles:
+                self.mark_as_duplicate(similar_article, article)
+            return None
 
     def _select_best_original(
         self, article: Article, similar_articles: List[Tuple[Article, float]]

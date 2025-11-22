@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import desc
 from typing import List, Optional
 from datetime import datetime, timedelta, timezone
+import logging
 from app.core.database import get_db
 from app.core.auth import get_current_user
 from app.models.article import Article
@@ -18,6 +19,7 @@ from app.api.validation import (
 )
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.get("/", response_model=List[ArticleSchema])
@@ -206,6 +208,13 @@ def get_related_articles(
 
     # If this article is a duplicate, get the original and other duplicates
     if article.is_duplicate and article.duplicate_of_id:
+        # Safeguard: don't allow self-referencing duplicates
+        if article.duplicate_of_id == article_id:
+            logger.warning(
+                f"Article {article_id} has self-referencing duplicate_of_id, skipping"
+            )
+            return []
+
         # Get the original article
         original = (
             db.query(Article)
@@ -216,7 +225,7 @@ def get_related_articles(
             )
             .first()
         )
-        if original:
+        if original and original.id != article_id:
             related_articles.append(original)
 
         # Get other duplicates of the same original
