@@ -13,11 +13,11 @@ import {
   getProxiedImageUrl,
   getRelatedArticles,
   downvoteArticle,
-  explainScoreAdjustment,
 } from "../../services/api";
 import { useArticleActions } from "../../hooks/useArticleActions";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import RelatedArticlesDialog from "./RelatedArticlesDialog";
+import DownvoteExplanationDialog from "./DownvoteExplanationDialog";
 
 interface NewspaperArticleCardProps {
   article: Article;
@@ -30,9 +30,7 @@ export default function NewspaperArticleCard({
 }: NewspaperArticleCardProps) {
   const [imageError, setImageError] = useState(false);
   const [showRelatedDialog, setShowRelatedDialog] = useState(false);
-  const [showExplanation, setShowExplanation] = useState(false);
-  const [explanation, setExplanation] = useState<string>("");
-  const [loadingExplanation, setLoadingExplanation] = useState(false);
+  const [showExplanationDialog, setShowExplanationDialog] = useState(false);
   // Start at random index to avoid all images showing the same one initially
   const [currentImageIndex, setCurrentImageIndex] = useState(() =>
     Math.floor(Math.random() * (article.image_urls?.length || 1))
@@ -81,23 +79,9 @@ export default function NewspaperArticleCard({
     }
   };
 
-  const handleExplain = async (e: React.MouseEvent) => {
+  const handleExplain = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!showExplanation && !explanation) {
-      setLoadingExplanation(true);
-      try {
-        const result = await explainScoreAdjustment(article.id);
-        setExplanation(result.explanation);
-        setShowExplanation(true);
-      } catch (error) {
-        console.error("Failed to load explanation:", error);
-        setExplanation("Failed to load explanation. Please try again.");
-      } finally {
-        setLoadingExplanation(false);
-      }
-    } else {
-      setShowExplanation(!showExplanation);
-    }
+    setShowExplanationDialog(true);
   };
 
   const publishedDate = article.published_date
@@ -322,15 +306,10 @@ export default function NewspaperArticleCard({
                         </span>
                         <button
                           onClick={handleExplain}
-                          className="text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                          className="text-blue-600 hover:text-blue-800"
                           title="Explain adjustment"
-                          disabled={loadingExplanation}
                         >
-                          {loadingExplanation ? (
-                            "..."
-                          ) : (
-                            <Info className="w-3 h-3" />
-                          )}
+                          <Info className="w-3 h-3" />
                         </button>
                       </>
                     ) : (
@@ -347,16 +326,6 @@ export default function NewspaperArticleCard({
           <p className={`${styles.summary} text-newspaper-700 flex-1`}>
             {displaySummary}
           </p>
-
-          {/* Explanation */}
-          {showExplanation && explanation && (
-            <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded text-sm">
-              <p className="font-semibold text-blue-900 mb-1">
-                Why was the score adjusted?
-              </p>
-              <p className="text-blue-800">{explanation}</p>
-            </div>
-          )}
 
           {/* Actions */}
           <div className="flex items-center gap-3 mt-auto pt-2">
@@ -426,6 +395,15 @@ export default function NewspaperArticleCard({
         isLoading={loadingRelated}
         onArticleClick={handleArticleClick}
       />
+
+      {/* Downvote Explanation Dialog */}
+      {showExplanationDialog && (
+        <DownvoteExplanationDialog
+          articleId={article.id}
+          articleTitle={displayTitle}
+          onClose={() => setShowExplanationDialog(false)}
+        />
+      )}
     </article>
   );
 }

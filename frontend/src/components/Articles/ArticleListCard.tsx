@@ -2,8 +2,9 @@ import { formatDistanceToNow } from "date-fns";
 import { ExternalLink, ThumbsDown, Info } from "lucide-react";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { downvoteArticle, explainScoreAdjustment } from "../../services/api";
+import { downvoteArticle } from "../../services/api";
 import type { Article } from "../../types";
+import DownvoteExplanationDialog from "./DownvoteExplanationDialog";
 
 interface ArticleListCardProps {
   article: Article;
@@ -20,9 +21,7 @@ export default function ArticleListCard({
   const displaySummary =
     article.llm_summary || article.summary || article.description;
 
-  const [showExplanation, setShowExplanation] = useState(false);
-  const [explanation, setExplanation] = useState<string>("");
-  const [loadingExplanation, setLoadingExplanation] = useState(false);
+  const [showExplanationDialog, setShowExplanationDialog] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -52,23 +51,9 @@ export default function ArticleListCard({
     }
   };
 
-  const handleExplain = async (e: React.MouseEvent) => {
+  const handleExplain = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!showExplanation && !explanation) {
-      setLoadingExplanation(true);
-      try {
-        const result = await explainScoreAdjustment(article.id);
-        setExplanation(result.explanation);
-        setShowExplanation(true);
-      } catch (error) {
-        console.error("Failed to load explanation:", error);
-        setExplanation("Failed to load explanation. Please try again.");
-      } finally {
-        setLoadingExplanation(false);
-      }
-    } else {
-      setShowExplanation(!showExplanation);
-    }
+    setShowExplanationDialog(true);
   };
 
   // Determine which score to display
@@ -129,7 +114,7 @@ export default function ArticleListCard({
                 title="Explain adjustment"
               >
                 <Info className="w-3 h-3" />
-                {loadingExplanation ? "Loading..." : "Why?"}
+                Why?
               </button>
             </>
           ) : (
@@ -137,14 +122,6 @@ export default function ArticleListCard({
               Score: {displayScore?.toFixed(2) ?? "0.00"}
             </span>
           )}
-        </div>
-      )}
-
-      {/* Explanation (if loaded) */}
-      {showExplanation && explanation && (
-        <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded text-sm text-blue-900">
-          <p className="font-semibold mb-1">Why was the score adjusted?</p>
-          <p>{explanation}</p>
         </div>
       )}
 
@@ -186,6 +163,15 @@ export default function ArticleListCard({
           {article.user_vote === -1 ? "Downvoted" : "Downvote"}
         </button>
       </div>
+
+      {/* Downvote Explanation Dialog */}
+      {showExplanationDialog && (
+        <DownvoteExplanationDialog
+          articleId={article.id}
+          articleTitle={displayTitle}
+          onClose={() => setShowExplanationDialog(false)}
+        />
+      )}
     </div>
   );
 }
