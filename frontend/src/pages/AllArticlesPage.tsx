@@ -7,7 +7,6 @@ import {
   getFeeds,
   getRelatedArticles,
   downvoteArticle,
-  explainScoreAdjustment,
   runFullUpdate,
 } from "../services/api";
 import PageHeader from "../components/Layout/PageHeader";
