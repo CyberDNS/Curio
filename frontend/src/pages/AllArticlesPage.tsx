@@ -57,11 +57,7 @@ export default function AllArticlesPage() {
   >(null);
   const [explanationArticleTitle, setExplanationArticleTitle] =
     useState<string>("");
-  const [explanations, setExplanations] = useState<Record<number, string>>({});
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [loadingExplanations, setLoadingExplanations] = useState<Set<number>>(
-    new Set()
-  );
+
   const [selectedForComparison, setSelectedForComparison] = useState<
     Set<number>
   >(new Set());
@@ -176,34 +172,10 @@ export default function AllArticlesPage() {
     }
   };
 
-  const handleExplain = async (articleId: number) => {
-    if (explanations[articleId]) {
-      // Toggle off
-      setExplanations((prev) => {
-        const next = { ...prev };
-        delete next[articleId];
-        return next;
-      });
-      return;
-    }
-
-    setLoadingExplanations((prev) => new Set(prev).add(articleId));
-    try {
-      const result = await explainScoreAdjustment(articleId);
-      setExplanations((prev) => ({ ...prev, [articleId]: result.explanation }));
-    } catch (error) {
-      console.error("Failed to load explanation:", error);
-      setExplanations((prev) => ({
-        ...prev,
-        [articleId]: "Failed to load explanation. Please try again.",
-      }));
-    } finally {
-      setLoadingExplanations((prev) => {
-        const next = new Set(prev);
-        next.delete(articleId);
-        return next;
-      });
-    }
+  const handleExplain = (articleId: number, articleTitle: string) => {
+    setExplanationArticleId(articleId);
+    setExplanationArticleTitle(articleTitle);
+    setShowExplanationDialog(true);
   };
 
   const toggleArticleSelection = (articleId: number) => {
@@ -689,16 +661,16 @@ export default function AllArticlesPage() {
                                   {(displayScore * 100).toFixed(0)}%
                                 </span>
                                 <button
-                                  onClick={() => handleExplain(article.id)}
-                                  className="text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                                  onClick={() =>
+                                    handleExplain(
+                                      article.id,
+                                      article.llm_title || article.title
+                                    )
+                                  }
+                                  className="text-blue-600 hover:text-blue-800"
                                   title="Explain adjustment"
-                                  disabled={loadingExplanations.has(article.id)}
                                 >
-                                  {loadingExplanations.has(article.id) ? (
-                                    "..."
-                                  ) : (
-                                    <Info className="w-3 h-3" />
-                                  )}
+                                  <Info className="w-3 h-3" />
                                 </button>
                               </div>
                             ) : (
@@ -793,26 +765,6 @@ export default function AllArticlesPage() {
                           }`}
                         />
                       </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-            {paginatedArticles.map((article) => {
-              if (!explanations[article.id]) return null;
-              return (
-                <tr key={`explanation-${article.id}`}>
-                  <td
-                    colSpan={7}
-                    className="p-3 bg-blue-50 border-t border-blue-200"
-                  >
-                    <div className="text-sm">
-                      <p className="font-semibold text-blue-900 mb-1">
-                        Why was the score adjusted?
-                      </p>
-                      <p className="text-blue-800">
-                        {explanations[article.id]}
-                      </p>
                     </div>
                   </td>
                 </tr>
@@ -944,7 +896,12 @@ export default function AllArticlesPage() {
                                   {(displayScore * 100).toFixed(0)}%
                                 </span>
                                 <button
-                                  onClick={() => handleExplain(article.id)}
+                                  onClick={() =>
+                                    handleExplain(
+                                      article.id,
+                                      article.llm_title || article.title
+                                    )
+                                  }
                                   className="text-blue-600 hover:text-blue-800"
                                   title="Explain adjustment"
                                 >
@@ -968,16 +925,6 @@ export default function AllArticlesPage() {
                       : "Unknown"}
                   </div>
                 </div>
-
-                {/* Explanation */}
-                {explanations[article.id] && (
-                  <div className="p-3 bg-blue-50 border border-blue-200 rounded text-sm">
-                    <p className="font-semibold text-blue-900 mb-1">
-                      Why was the score adjusted?
-                    </p>
-                    <p className="text-blue-800">{explanations[article.id]}</p>
-                  </div>
-                )}
 
                 {/* Actions */}
                 <div className="flex items-center gap-3 pt-2 border-t border-newspaper-200">
