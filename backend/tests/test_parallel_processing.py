@@ -208,6 +208,7 @@ class TestEndToEndProcessing:
         # Verify rate limiter and semaphore are initialized
         assert processor.rate_limiter is not None
         assert processor.semaphore is not None
-        assert (
-            processor.semaphore._value == 10
-        )  # Default max concurrent (LLM_MAX_CONCURRENT)
+        # Verify semaphore matches the configured max concurrent value
+        from app.core.config import settings
+
+        assert processor.semaphore._value == settings.LLM_MAX_CONCURRENT
