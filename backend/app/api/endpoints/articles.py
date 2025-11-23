@@ -27,6 +27,7 @@ def get_articles(
     skip: int = SkipParam,
     limit: int = LimitParam,
     category_id: Optional[int] = CategoryIdParam,
+    feed_id: Optional[int] = Query(None, ge=1),
     tags: Optional[List[str]] = Query(None, max_length=100),
     selected_only: bool = False,
     unread_only: bool = False,
@@ -41,6 +42,7 @@ def get_articles(
     Set days_back=None to show all articles.
     Set balanced=True for Today page algorithm (top articles from all categories).
     Filter by tags using the tags query parameter (can pass multiple).
+    Filter by feed_id to show articles from a specific source.
     """
     query = (
         db.query(Article)
@@ -55,6 +57,9 @@ def get_articles(
 
     if category_id:
         query = query.filter(Article.category_id == category_id)
+
+    if feed_id:
+        query = query.filter(Article.feed_id == feed_id)
 
     # Filter by tags - article must have ALL specified tags
     if tags:

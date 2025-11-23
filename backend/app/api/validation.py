@@ -117,5 +117,5 @@ CategoryIdParam = Query(None, ge=1, le=2147483647, description="Category ID filt
 FeedIdParam = Query(None, ge=1, le=2147483647, description="Feed ID filter")
 ArticleIdParam = Query(None, ge=1, le=2147483647, description="Article ID filter")
 DaysBackParam = Query(None, ge=0, le=365, description="Number of days to look back")
-LimitParam = Query(100, ge=1, le=1000, description="Maximum items to return")
+LimitParam = Query(100, ge=1, le=5000, description="Maximum items to return")
 SkipParam = Query(0, ge=0, le=100000, description="Number of items to skip")

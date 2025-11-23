@@ -4,6 +4,7 @@ import {
   getArticles,
   reprocessArticle,
   getCategories,
+  getFeeds,
   getRelatedArticles,
   downvoteArticle,
   explainScoreAdjustment,
@@ -36,6 +37,11 @@ type FilterType =
 export default function AllArticlesPage() {
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<FilterType>("all");
+  const [daysBack, setDaysBack] = useState<number>(30);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(
+    null
+  );
+  const [selectedFeedId, setSelectedFeedId] = useState<number | null>(null);
   const [page, setPage] = useState(0);
   const [processingArticleIds, setProcessingArticleIds] = useState<Set<number>>(
     new Set()
@@ -56,14 +62,28 @@ export default function AllArticlesPage() {
   const pageSize = 50;
 
   const { data: allArticles = [], isLoading } = useQuery({
-    queryKey: ["articles", "all", 1000, 30],
-    queryFn: () => getArticles({ limit: 1000, days_back: 30 }), // Show articles from last 30 days
+    queryKey: ["articles", "all", daysBack, selectedCategoryId, selectedFeedId],
+    queryFn: () => {
+      const params: any = {
+        limit: 5000,
+        days_back: daysBack,
+      };
+      if (selectedCategoryId) params.category_id = selectedCategoryId;
+      if (selectedFeedId) params.feed_id = selectedFeedId;
+      console.log("Fetching articles with params:", params);
+      return getArticles(params);
+    },
     refetchInterval: 30000,
   });
 
   const { data: categories = [] } = useQuery({
     queryKey: ["categories"],
     queryFn: getCategories,
+  });
+
+  const { data: feeds = [] } = useQuery({
+    queryKey: ["feeds"],
+    queryFn: getFeeds,
   });
 
   const { data: relatedArticles = [], isLoading: loadingRelated } = useQuery({
@@ -338,6 +358,78 @@ export default function AllArticlesPage() {
 
       {/* Filters */}
       <div className="space-y-4">
+        {/* Advanced Filters Row */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-semibold text-newspaper-900 mb-2">
+              Days Back
+            </label>
+            <select
+              value={daysBack}
+              onChange={(e) => {
+                setDaysBack(Number(e.target.value));
+                setPage(0);
+              }}
+              className="w-full px-3 py-2 border border-newspaper-300 bg-white text-newspaper-900 focus:outline-none focus:ring-2 focus:ring-newspaper-600"
+            >
+              <option value={1}>Last 24 hours</option>
+              <option value={3}>Last 3 days</option>
+              <option value={7}>Last week</option>
+              <option value={14}>Last 2 weeks</option>
+              <option value={30}>Last month</option>
+              <option value={60}>Last 2 months</option>
+              <option value={90}>Last 3 months</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-newspaper-900 mb-2">
+              Category
+            </label>
+            <select
+              value={selectedCategoryId || ""}
+              onChange={(e) => {
+                setSelectedCategoryId(
+                  e.target.value ? Number(e.target.value) : null
+                );
+                setPage(0);
+              }}
+              className="w-full px-3 py-2 border border-newspaper-300 bg-white text-newspaper-900 focus:outline-none focus:ring-2 focus:ring-newspaper-600"
+            >
+              <option value="">All Categories</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-newspaper-900 mb-2">
+              Source
+            </label>
+            <select
+              value={selectedFeedId || ""}
+              onChange={(e) => {
+                setSelectedFeedId(
+                  e.target.value ? Number(e.target.value) : null
+                );
+                setPage(0);
+              }}
+              className="w-full px-3 py-2 border border-newspaper-300 bg-white text-newspaper-900 focus:outline-none focus:ring-2 focus:ring-newspaper-600"
+            >
+              <option value="">All Sources</option>
+              {feeds.map((feed) => (
+                <option key={feed.id} value={feed.id}>
+                  {feed.title}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Status Filters */}
         <div>
           <div className="text-sm font-semibold text-newspaper-900 mb-2">
             Filter by Status

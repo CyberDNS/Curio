@@ -74,23 +74,28 @@ class SecurityJsonFormatter(logging.Formatter):
 
 
 def setup_security_logging():
-    """Configure structured JSON logging for security events."""
+    """Configure human-readable logging with correlation IDs."""
+    from app.core.config import settings
 
-    # Create JSON formatter
-    formatter = SecurityJsonFormatter()
+    # Always use human-readable logs
+    # Correlation IDs still provide request tracking for debugging
+    formatter = logging.Formatter(
+        fmt="%(asctime)s [%(correlation_id)s] %(levelname)-8s %(name)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
 
-    # Console handler with JSON formatting
+    # Console handler
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(formatter)
     console_handler.addFilter(CorrelationIdFilter())
 
     # Configure root logger
     root_logger = logging.getLogger()
-    root_logger.setLevel(logging.INFO)
+    root_logger.setLevel(logging.DEBUG if settings.DEBUG else logging.INFO)
     root_logger.handlers.clear()
     root_logger.addHandler(console_handler)
 
-    # Configure uvicorn loggers to use JSON formatter
+    # Configure uvicorn loggers
     uvicorn_logger = logging.getLogger("uvicorn")
     uvicorn_logger.handlers.clear()
     uvicorn_logger.addHandler(console_handler)

@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str
     LLM_MODEL: str = "gpt-5-nano"
 
+    # LLM Rate Limiting & Parallelization
+    LLM_MAX_CONCURRENT: int = 5  # Max concurrent LLM API calls
+    LLM_TPM_LIMIT: int = 90000  # Tokens per minute limit (adjust per your tier)
+    LLM_MAX_INPUT_TOKENS: int = 2000  # Max tokens to send per request
+
     # Embeddings for duplicate detection
     EMBEDDING_MODEL: str = "text-embedding-3-small"
     DUPLICATE_SIMILARITY_THRESHOLD: float = 0.85

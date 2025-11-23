@@ -8,12 +8,49 @@ from app.models.settings import UserSettings
 from app.core.config import settings
 from app.services.duplicate_detector import DuplicateDetector
 from app.services.downvote_handler import DownvoteHandler
+from app.services.rate_limiter import (
+    TokenBucketRateLimiter,
+    estimate_request_tokens,
+)
 from slugify import slugify
 import logging
 import json
 import re
+import asyncio
 
 logger = logging.getLogger(__name__)
+
+# Shared rate limiter and semaphore across all LLMProcessor instances
+# This prevents race conditions when multiple requests process articles in parallel
+_shared_rate_limiter = None
+_shared_semaphore = None
+_article_locks = {}  # Dict of article_id -> asyncio.Lock
+_locks_lock = asyncio.Lock()  # Lock for managing the locks dict
+
+
+def _get_shared_rate_limiter():
+    """Get or create the shared rate limiter instance."""
+    global _shared_rate_limiter
+    if _shared_rate_limiter is None:
+        _shared_rate_limiter = TokenBucketRateLimiter(settings.LLM_TPM_LIMIT)
+    return _shared_rate_limiter
+
+
+def _get_shared_semaphore():
+    """Get or create the shared semaphore instance."""
+    global _shared_semaphore
+    if _shared_semaphore is None:
+        _shared_semaphore = asyncio.Semaphore(settings.LLM_MAX_CONCURRENT)
+    return _shared_semaphore
+
+
+async def _get_article_lock(article_id: int) -> asyncio.Lock:
+    """Get or create a lock for a specific article ID."""
+    global _article_locks
+    async with _locks_lock:
+        if article_id not in _article_locks:
+            _article_locks[article_id] = asyncio.Lock()
+        return _article_locks[article_id]
 
 
 class LLMProcessor:
@@ -21,6 +58,9 @@ class LLMProcessor:
         self.db = db
         self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
         self.duplicate_detector = DuplicateDetector(db)
+        # Use shared instances to coordinate across parallel requests
+        self.rate_limiter = _get_shared_rate_limiter()
+        self.semaphore = _get_shared_semaphore()
 
     async def process_articles(
         self, article_ids: Optional[List[int]] = None, user_id: Optional[int] = None
@@ -34,28 +74,6 @@ class LLMProcessor:
         - Detects duplicates using embeddings
         - No automatic hot article evaluation (removed)
         """
-
-        # Get user's content selection prompt
-        selection_prompt_setting = (
-            self.db.query(UserSettings)
-            .filter(UserSettings.key == "llm_selection_prompt")
-            .first()
-        )
-
-        if not selection_prompt_setting:
-            logger.warning("No LLM selection prompt configured, using default behavior")
-            selection_prompt = (
-                "Select all articles that are informative and well-written."
-            )
-        else:
-            selection_prompt = selection_prompt_setting.value
-
-        # Get existing active (non-deleted) categories with descriptions for the LLM to consider
-        query_categories = self.db.query(Category).filter(Category.is_deleted == False)
-        if user_id:
-            query_categories = query_categories.filter(Category.user_id == user_id)
-
-        existing_categories = query_categories.all()
 
         # Get unprocessed articles from last 24 hours only (unless specific IDs requested)
         days_back = 1
@@ -78,12 +96,80 @@ class LLMProcessor:
             logger.info("No articles to process (within 24-hour window)")
             return 0
 
+        # Get user_id from first article if not provided
+        if not user_id and articles:
+            user_id = articles[0].user_id
+
+        # Get user's content selection prompt (must filter by user_id for multi-tenancy)
+        selection_prompt_setting = (
+            self.db.query(UserSettings)
+            .filter(
+                UserSettings.key == "llm_selection_prompt",
+                UserSettings.user_id == user_id,
+            )
+            .first()
+        )
+
+        if not selection_prompt_setting:
+            logger.warning(
+                f"No LLM selection prompt configured for user {user_id}, using default behavior"
+            )
+            selection_prompt = (
+                "Select all articles that are informative and well-written."
+            )
+        else:
+            selection_prompt = selection_prompt_setting.value
+
+        # Get existing active (non-deleted) categories with descriptions for the LLM to consider
+        existing_categories = (
+            self.db.query(Category)
+            .filter(Category.is_deleted == False, Category.user_id == user_id)
+            .all()
+        )
+
         logger.info(f"Processing {len(articles)} articles from last {days_back} day(s)")
 
-        processed = 0
-        for article in articles:
+        # Process articles in parallel with rate limiting
+        tasks = [
+            self._process_single_article(article, selection_prompt, existing_categories)
+            for article in articles
+        ]
+
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Count successful processing
+        processed = sum(1 for r in results if r is True)
+        failed = sum(1 for r in results if isinstance(r, Exception))
+
+        if failed > 0:
+            logger.warning(f"Failed to process {failed} articles")
+
+        logger.info(f"Processed {processed} articles with LLM (parallel)")
+        return processed
+
+    async def _process_single_article(
+        self,
+        article: Article,
+        selection_prompt: str,
+        existing_categories: List[Category],
+    ) -> bool:
+        """
+        Process a single article with rate limiting and concurrency control.
+
+        Uses per-article locks to prevent concurrent processing of the same article.
+
+        Returns:
+            True if successful, False otherwise
+        """
+        # Get lock for this specific article to prevent concurrent processing
+        article_lock = await _get_article_lock(article.id)
+
+        async with article_lock:
             try:
-                # Comprehensive LLM analysis
+                # Refresh article from DB to get latest state
+                self.db.refresh(article)
+
+                # Comprehensive LLM analysis (with rate limiting inside)
                 result = await self._analyze_article_comprehensive(
                     article, selection_prompt, existing_categories
                 )
@@ -127,17 +213,15 @@ class LLMProcessor:
                 # Commit downvote adjustments
                 self.db.commit()
 
-                processed += 1
                 logger.info(
                     f"Processed article {article.id}: {article.llm_title or article.title}"
                 )
+                return True
 
             except Exception as e:
                 logger.error(f"Error processing article {article.id}: {str(e)}")
                 self.db.rollback()
-
-        logger.info(f"Processed {processed} articles with LLM")
-        return processed
+                return False
 
     async def _analyze_article(self, article: Article, selection_prompt: str) -> Dict:
         """Analyze a single article with LLM."""
@@ -217,52 +301,39 @@ Analyze this article and provide your assessment."""
                 "\n\nNo categories defined yet. Return null for category_id."
             )
 
-        system_prompt = f"""You are an intelligent news editor and curator. Your job is to analyze articles and assign them to appropriate categories.
+        system_prompt = f"""You are a news curator. Your PRIMARY job is to score articles based on how well they match the user's specific interests.
 
-Analyze the article and provide:
+Tasks:
+1. Enhanced Title (max 80 chars, newspaper-style)
+2. Subtitle (max 100 chars, catchy tagline)
+3. Summary (2-3 sentences)
+4. Category ID (from available list, or null)
+5. Relevance Score (0.0-1.0) - BASED ON USER'S INTERESTS
 
-1. **Enhanced Title**: A compelling, newspaper-style headline (max 80 chars)
-2. **Subtitle**: A catchy tagline or kicker (max 100 chars)
-3. **Summary**: Concise 2-3 sentence summary of the article
-4. **Category Assignment**: Select the most appropriate category ID from the available categories
-5. **Relevance Score**: Rate relevance to user interests (0.0-1.0)
+CRITICAL RULES:
+1. Output MUST match input article's language exactly (no translation)
+2. Relevance score MUST reflect how well the article matches the USER'S SPECIFIC INTERESTS provided below
+3. Ignore your own judgment - ONLY score based on the user's stated interests
 
-**LANGUAGE PRESERVATION**:
-- CRITICAL: Your output (title, subtitle, summary) MUST be in the SAME LANGUAGE as the input article
-- If the article is in German, respond in German
-- If the article is in French, respond in French
-- If the article is in English, respond in English
-- Match the input language exactly - do NOT translate
+Relevance Scoring - Rate ONLY based on user's interests:
+- 0.9-1.0: Directly addresses user's core interests (rare)
+- 0.7-0.9: Strongly related to user's interests
+- 0.6-0.7: Clearly related to user's interests (recommended threshold)
+- 0.4-0.6: Tangentially related to user's interests
+- 0.0-0.4: Not related to user's interests
 
-**CATEGORY ASSIGNMENT GUIDELINES**:
-- Carefully read the category descriptions to understand what content belongs in each category
-- Assign the article to the SINGLE best-matching category
-- If no category is a good fit, return null for category_id
-- Consider the article's primary topic and theme when categorizing
+Category Assignment:
+- Choose best-matching category ID from list
+- Return null if no good match
 
-**Relevance Scoring Guidelines**:
-- Be STRICT and SELECTIVE - the user doesn't want to see everything
-- Score conservatively - most articles should score below 0.5
-- Only articles that directly relate to the user's interests should score above 0.6
-- Articles scoring >= 0.6 will be marked as "Recommended"
-
-**Score Thresholds**:
-- 0.9-1.0: Perfect match to user's core interests (rare!)
-- 0.7-0.9: Strong match, directly relevant
-- 0.6-0.7: Good match, clearly related (RECOMMENDED threshold)
-- 0.4-0.6: Weak connection, tangentially related
-- 0.0-0.4: Not relevant
-
-Respond ONLY with valid JSON in this exact format:
+JSON format:
 {{
-    "title": "Compelling headline here",
-    "subtitle": "Engaging subtitle here",
-    "summary": "2-3 sentence summary",
+    "title": "headline",
+    "subtitle": "tagline",
+    "summary": "2-3 sentences",
     "category_id": 123,
     "relevance_score": 0.85
-}}
-
-Note: category_id should be an integer from the available categories, or null if no good match."""
+}}"""
 
         # Extract content for analysis
         content = article.content or article.description or "No content available"
@@ -270,12 +341,17 @@ Note: category_id should be an integer from the available categories, or null if
         # Strip images from content to save LLM tokens
         content_for_llm = self._strip_images_from_content(content)
 
+        # Aggressively truncate content based on max input tokens
+        # Reserve tokens for: system prompt (~600), title/author/context (~200), overhead (~200)
+        max_content_tokens = settings.LLM_MAX_INPUT_TOKENS - 1000
+        content_for_llm = self._truncate_to_tokens(content_for_llm, max_content_tokens)
+
         user_prompt = f"""Article to Analyze:
 
 Title: {article.title}
 Author: {article.author or "Unknown"}
 Content:
-{content_for_llm[:3000]}...{category_context}
+{content_for_llm}{category_context}
 
 User's Interests:
 {selection_prompt}
@@ -283,11 +359,17 @@ User's Interests:
 Analyze and provide comprehensive JSON output."""
 
         try:
+            # Estimate tokens for rate limiting
+            estimated_tokens = estimate_request_tokens(
+                system_prompt, user_prompt, settings.LLM_MODEL, response_buffer=400
+            )
+
             # Log the request (DEBUG level for details)
             logger.debug("=" * 80)
             logger.debug("LLM REQUEST - Article Analysis")
             logger.debug(f"Article ID: {article.id}")
             logger.debug(f"Model: {settings.LLM_MODEL}")
+            logger.debug(f"Estimated tokens: {estimated_tokens}")
             logger.debug("-" * 80)
             logger.debug("SYSTEM PROMPT:")
             logger.debug(system_prompt)
@@ -296,14 +378,25 @@ Analyze and provide comprehensive JSON output."""
             logger.debug(user_prompt)
             logger.debug("=" * 80)
 
-            response = await self.client.chat.completions.create(
-                model=settings.LLM_MODEL,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                response_format={"type": "json_object"},
-            )
+            # Apply rate limiting and concurrency control
+            async with self.semaphore:
+                await self.rate_limiter.acquire(estimated_tokens)
+
+                response = await self.client.chat.completions.create(
+                    model=settings.LLM_MODEL,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    response_format={"type": "json_object"},
+                )
+
+                # Report actual usage for better rate limiting
+                if response.usage:
+                    actual_tokens = response.usage.total_tokens
+                    self.rate_limiter.report_actual_usage(
+                        actual_tokens, estimated_tokens
+                    )
 
             result = json.loads(response.choices[0].message.content)
 
@@ -379,6 +472,32 @@ Analyze and provide comprehensive JSON output."""
         content = re.sub(r" +", " ", content)
 
         return content.strip()
+
+    def _truncate_to_tokens(self, text: str, max_tokens: int) -> str:
+        """
+        Truncate text to approximately max_tokens.
+
+        Uses a simple heuristic: ~4 characters per token for English text.
+        This is a rough estimate but avoids expensive token counting on every call.
+
+        Args:
+            text: Text to truncate
+            max_tokens: Maximum number of tokens
+
+        Returns:
+            Truncated text
+        """
+        if not text:
+            return text
+
+        # Rough estimate: 4 chars per token
+        max_chars = max_tokens * 4
+
+        if len(text) <= max_chars:
+            return text
+
+        # Truncate and add ellipsis
+        return text[:max_chars] + "..."
 
     async def regenerate_summaries(self, category_id: Optional[int] = None) -> int:
         """Regenerate summaries for existing articles."""

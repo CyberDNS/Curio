@@ -28,6 +28,7 @@ export const getArticles = async (params?: {
   skip?: number;
   limit?: number;
   category_id?: number;
+  feed_id?: number;
   selected_only?: boolean;
   unread_only?: boolean;
   days_back?: number;

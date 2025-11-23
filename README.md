@@ -21,6 +21,7 @@ Curio is a self-hosted, personalized news aggregator that fetches content from y
 
 - 📰 **Newspaper-Style UI** - Beautiful, classic newspaper layout for comfortable reading
 - 🤖 **AI-Powered Curation** - Uses LLM to select and summarize articles based on your preferences
+- ⚡ **Parallel LLM Processing** - Fast, efficient article analysis with rate limiting (up to 3-5x faster)
 - 📡 **RSS Feed Management** - Add and organize multiple RSS feeds
 - 🏷️ **Category Organization** - Organize feeds into custom categories (rubriques)
 - 🐳 **Easy Deployment** - Docker container ready for Unraid, Home Assistant, and other platforms
@@ -183,15 +184,20 @@ curio/
 
 ### Environment Variables
 
-| Variable             | Description                  | Default                   |
-| -------------------- | ---------------------------- | ------------------------- |
-| `OPENAI_API_KEY`     | OpenAI API key (required)    | -                         |
-| `LLM_MODEL`          | OpenAI model to use          | `gpt-4-turbo-preview`     |
-| `POSTGRES_PASSWORD`  | Database password            | `curio`                   |
-| `SECRET_KEY`         | App secret key               | `change-me-in-production` |
-| `RSS_FETCH_INTERVAL` | Minutes between feed updates | `60`                      |
-| `BACKEND_PORT`       | Backend port                 | `8000`                    |
-| `FRONTEND_PORT`      | Frontend port                | `3000`                    |
+| Variable               | Description                  | Default                   |
+| ---------------------- | ---------------------------- | ------------------------- |
+| `OPENAI_API_KEY`       | OpenAI API key (required)    | -                         |
+| `LLM_MODEL`            | OpenAI model to use          | `gpt-4-turbo-preview`     |
+| `LLM_MAX_CONCURRENT`   | Max concurrent LLM API calls | `5`                       |
+| `LLM_TPM_LIMIT`        | Tokens per minute limit      | `90000`                   |
+| `LLM_MAX_INPUT_TOKENS` | Max tokens per API request   | `2000`                    |
+| `POSTGRES_PASSWORD`    | Database password            | `curio`                   |
+| `SECRET_KEY`           | App secret key               | `change-me-in-production` |
+| `RSS_FETCH_INTERVAL`   | Minutes between feed updates | `60`                      |
+| `BACKEND_PORT`         | Backend port                 | `8000`                    |
+| `FRONTEND_PORT`        | Frontend port                | `3000`                    |
+
+> 💡 **Performance Tip:** Curio now supports parallel LLM processing! Adjust `LLM_MAX_CONCURRENT` and `LLM_TPM_LIMIT` based on your OpenAI tier for optimal speed. See [Parallel LLM Guide](QUICKREF_PARALLEL_LLM.md) for details.
 
 ### AI Prompt Customization
 
