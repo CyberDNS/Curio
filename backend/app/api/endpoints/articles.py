@@ -338,7 +338,8 @@ async def explain_score_adjustment(
     Get a human-readable explanation of why an article's score was adjusted.
 
     Uses LLM to generate natural language explanation comparing the article
-    to similar downvoted content.
+    to similar downvoted content. Includes key similarity points extracted
+    from embedding analysis.
     """
     # Validate article_id
     validate_positive_int(article_id, "article_id")
@@ -355,18 +356,22 @@ async def explain_score_adjustment(
         return {
             "explanation": "No score adjustment was applied to this article.",
             "has_adjustment": False,
+            "key_points": [],
         }
 
     # Generate detailed explanation using LLM
     from app.services.downvote_handler import DownvoteHandler
 
     handler = DownvoteHandler(db, current_user.id)
-    explanation = await handler.explain_adjustment(article)
+    explanation_data = await handler.explain_adjustment(article)
 
     return {
-        "explanation": explanation,
+        "explanation": explanation_data["explanation"],
         "has_adjustment": True,
         "original_score": article.relevance_score,
         "adjusted_score": article.adjusted_relevance_score,
         "brief_reason": article.score_adjustment_reason,
+        "key_points": explanation_data.get("key_points", []),
+        "similarity_score": explanation_data.get("similarity_score"),
+        "similar_article_title": explanation_data.get("similar_article_title"),
     }

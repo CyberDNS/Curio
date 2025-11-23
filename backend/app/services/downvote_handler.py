@@ -230,20 +230,38 @@ class DownvoteHandler:
             article.adjusted_relevance_score = article.relevance_score
             return False
 
-    async def explain_adjustment(self, article: Article) -> str:
+    async def explain_adjustment(self, article: Article) -> dict:
         """
         Generate human-readable explanation of why the score was adjusted.
 
         Uses LLM to create a natural language explanation by comparing the
-        article to the most similar downvoted content.
+        article to the most similar downvoted content. Also extracts key
+        similarity points using embedding analysis.
+
+        Returns:
+            dict with:
+                - explanation: Natural language explanation
+                - key_points: List of specific similarity points
+                - similarity_score: Numeric similarity (0-1)
+                - similar_article_title: Title of most similar downvoted article
         """
         if not article.score_adjustment_reason:
-            return "No score adjustment was applied to this article."
+            return {
+                "explanation": "No score adjustment was applied to this article.",
+                "key_points": [],
+                "similarity_score": None,
+                "similar_article_title": None,
+            }
 
         max_similarity, most_similar_article = self.find_most_similar_downvote(article)
 
         if not most_similar_article or max_similarity is None:
-            return article.score_adjustment_reason
+            return {
+                "explanation": article.score_adjustment_reason,
+                "key_points": [],
+                "similarity_score": None,
+                "similar_article_title": None,
+            }
 
         # Get article content for comparison
         current_title = article.llm_title or article.title
@@ -264,12 +282,16 @@ class DownvoteHandler:
 Your task is to explain why an article's relevance score was adjusted downward based on similarity to previously downvoted content.
 
 Be:
-- Clear and concise (2-3 sentences max)
+- Clear and concise (2-3 sentences max for main explanation)
 - Specific about what makes them similar
 - Helpful in understanding the filtering logic
 - Not judgmental about user preferences
 
-Focus on explaining the SIMILARITY, not criticizing either article."""
+Focus on explaining the SIMILARITY, not criticizing either article.
+
+You will provide:
+1. A natural language explanation (2-3 sentences)
+2. A list of 3-5 specific key similarity points (short phrases)"""
 
         user_prompt = f"""The user downvoted this article in the past:
 
@@ -283,7 +305,11 @@ Summary: {current_summary[:300]}
 
 The system detected {max_similarity:.0%} similarity and reduced the relevance score from {article.relevance_score:.2f} to {article.adjusted_relevance_score:.2f}.
 
-Explain in 2-3 sentences why these articles are similar and why the score was adjusted. Be specific about the common themes, topics, or angles they share."""
+Provide a JSON response with:
+1. "explanation": 2-3 sentences explaining why these articles are similar
+2. "key_points": array of 3-5 specific similarity points (e.g., "Same company/topic", "Similar technology focus", "Related policy discussion")
+
+Be specific about the common themes, topics, angles, or entities they share."""
 
         try:
             response = await self.client.chat.completions.create(
@@ -292,24 +318,44 @@ Explain in 2-3 sentences why these articles are similar and why the score was ad
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
-                max_tokens=200,
+                max_tokens=300,
                 temperature=0.7,
+                response_format={"type": "json_object"},
             )
 
-            explanation = response.choices[0].message.content.strip()
+            result_text = response.choices[0].message.content.strip()
+            result = json.loads(result_text)
 
-            logger.info(f"Generated explanation for article {article.id}")
+            explanation = result.get("explanation", "")
+            key_points = result.get("key_points", [])
 
-            return explanation
+            logger.info(
+                f"Generated explanation for article {article.id} with {len(key_points)} key points"
+            )
+
+            return {
+                "explanation": explanation,
+                "key_points": key_points,
+                "similarity_score": max_similarity,
+                "similar_article_title": similar_title,
+            }
 
         except Exception as e:
             logger.error(f"Failed to generate explanation: {e}")
             # Fallback to simple explanation
-            return (
-                f"This article was scored lower because it's {max_similarity:.0%} similar "
-                f"to '{similar_title[:60]}...', which you previously downvoted. "
-                f"Both articles appear to cover related topics or themes."
-            )
+            return {
+                "explanation": (
+                    f"This article was scored lower because it's {max_similarity:.0%} similar "
+                    f"to '{similar_title[:60]}...', which you previously downvoted. "
+                    f"Both articles appear to cover related topics or themes."
+                ),
+                "key_points": [
+                    "Similar to previously downvoted content",
+                    f"{max_similarity:.0%} embedding similarity",
+                ],
+                "similarity_score": max_similarity,
+                "similar_article_title": similar_title,
+            }
 
     def rebuild_prototypes(self) -> int:
         """

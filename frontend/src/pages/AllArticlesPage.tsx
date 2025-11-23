@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import RelatedArticlesDialog from "../components/Articles/RelatedArticlesDialog";
+import DownvoteExplanationDialog from "../components/Articles/DownvoteExplanationDialog";
 
 type FilterType =
   | "all"
@@ -50,6 +51,12 @@ export default function AllArticlesPage() {
   const [selectedArticleId, setSelectedArticleId] = useState<number | null>(
     null
   );
+  const [showExplanationDialog, setShowExplanationDialog] = useState(false);
+  const [explanationArticleId, setExplanationArticleId] = useState<
+    number | null
+  >(null);
+  const [explanationArticleTitle, setExplanationArticleTitle] =
+    useState<string>("");
   const [explanations, setExplanations] = useState<Record<number, string>>({});
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [loadingExplanations, setLoadingExplanations] = useState<Set<number>>(
@@ -1091,6 +1098,19 @@ export default function AllArticlesPage() {
         getCategoryName={getCategoryName}
       />
 
+      {/* Downvote Explanation Dialog */}
+      {showExplanationDialog && explanationArticleId && (
+        <DownvoteExplanationDialog
+          articleId={explanationArticleId}
+          articleTitle={explanationArticleTitle}
+          onClose={() => {
+            setShowExplanationDialog(false);
+            setExplanationArticleId(null);
+            setExplanationArticleTitle("");
+          }}
+        />
+      )}
+
       {/* Compare Articles Dialog */}
       {showCompareDialog && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -1186,12 +1206,19 @@ export default function AllArticlesPage() {
                         </div>
                         {article.score_adjustment_reason && (
                           <div className="mt-2 pt-2 border-t border-newspaper-300">
-                            <span className="font-semibold">
-                              Adjustment Reason:
-                            </span>
-                            <p className="text-xs mt-1 text-newspaper-600">
-                              {article.score_adjustment_reason}
-                            </p>
+                            <button
+                              onClick={() => {
+                                setExplanationArticleId(article.id);
+                                setExplanationArticleTitle(
+                                  article.llm_title || article.title
+                                );
+                                setShowExplanationDialog(true);
+                              }}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-lg transition-colors text-xs font-medium text-orange-800"
+                            >
+                              <Info className="w-3.5 h-3.5" />
+                              View Score Adjustment Details
+                            </button>
                           </div>
                         )}
                       </div>

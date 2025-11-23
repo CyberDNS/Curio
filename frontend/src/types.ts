@@ -68,6 +68,9 @@ export interface ScoreAdjustmentExplanation {
   original_score?: number;
   adjusted_score?: number;
   brief_reason?: string;
+  key_points?: string[];
+  similarity_score?: number;
+  similar_article_title?: string;
 }
 
 export interface UserSettings {

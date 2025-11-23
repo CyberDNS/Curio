@@ -229,6 +229,9 @@ class TestArticlesAPI:
         data = response.json()
         assert "explanation" in data
         assert "has_adjustment" in data
+        assert "key_points" in data
+        assert "similarity_score" in data
+        assert "similar_article_title" in data
 
     def test_articles_require_authentication(self, client):
         """Test that articles endpoints require authentication."""
