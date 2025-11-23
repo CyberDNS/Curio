@@ -318,7 +318,6 @@ Be specific about the common themes, topics, angles, or entities they share."""
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
-                max_tokens=300,
                 temperature=0.7,
                 response_format={"type": "json_object"},
             )
