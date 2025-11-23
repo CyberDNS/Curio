@@ -24,6 +24,7 @@ jobs:
   backend-tests:
     name: Backend Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     services:
       postgres:
@@ -73,7 +74,7 @@ jobs:
           DEV_MODE: true
           COOKIE_SECURE: false
         run: |
-          pytest --cov=app --cov-report=xml --cov-report=term-missing
+          pytest --cov=app --cov-report=xml --cov-report=term-missing --timeout=60 -vv
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
@@ -85,6 +86,7 @@ jobs:
   frontend-tests:
     name: Frontend Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@v4
@@ -117,6 +119,7 @@ jobs:
   build-backend:
     name: Build Backend Image
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: [backend-tests]
     # Only build images on version tags, not on every push to main
     if: github.event_name != 'pull_request' && startsWith(github.ref, 'refs/tags/v')
@@ -156,7 +159,7 @@ jobs:
         with:
           context: ./backend
           file: ./backend/Dockerfile
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -167,6 +170,7 @@ jobs:
   build-frontend:
     name: Build Frontend Image
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: [frontend-tests]
     # Only build images on version tags, not on every push to main
     if: github.event_name != 'pull_request' && startsWith(github.ref, 'refs/tags/v')
@@ -206,7 +210,7 @@ jobs:
         with:
           context: ./frontend
           file: ./frontend/Dockerfile
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -217,6 +221,7 @@ jobs:
   build-unraid:
     name: Build Unraid All-in-One Image
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     needs: [backend-tests, frontend-tests]
     # Only build images on version tags, not on every push to main
     if: github.event_name != 'pull_request' && startsWith(github.ref, 'refs/tags/v')
@@ -256,7 +261,7 @@ jobs:
         with:
           context: .
           file: ./Dockerfile.unraid
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
