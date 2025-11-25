@@ -69,61 +69,45 @@ class NewspaperGenerator:
 
         target_date_str = target_date.isoformat()
 
-        # Get articles from last 3 days that haven't appeared in newspaper yet
-        date_threshold = datetime.utcnow() - timedelta(days=3)
+        # Get existing newspaper if it exists
+        existing_newspaper = (
+            self.db.query(Newspaper)
+            .filter(Newspaper.user_id == user_id, Newspaper.date == target_date)
+            .first()
+        )
 
-        eligible_articles = (
-            self.db.query(Article)
+        # Get articles already in today's edition (they must be preserved)
+        # Check both the newspaper structure AND newspaper_appearances field
+        existing_article_ids = set()
+        if existing_newspaper:
+            existing_article_ids.update(existing_newspaper.structure.get("today", []))
+            for cat_articles in existing_newspaper.structure.get(
+                "categories", {}
+            ).values():
+                existing_article_ids.update(cat_articles)
+
+        # Also check for articles that have newspaper_appearances for today
+        # (in case newspaper structure and appearances are out of sync)
+        articles_with_appearances = (
+            self.db.query(Article.id)
             .filter(
                 Article.user_id == user_id,
-                Article.is_read == False,
-                Article.is_archived == False,
-                Article.is_duplicate == False,  # Exclude duplicates
-                Article.created_at >= date_threshold,  # Last 3 days
-                Article.summary.isnot(None),  # Must be processed
+                Article.newspaper_appearances.isnot(None),
             )
             .all()
         )
 
-        # Filter by minimum score threshold (use adjusted_score if available, otherwise base score)
-        eligible_articles = [
-            a
-            for a in eligible_articles
-            if (a.adjusted_relevance_score or a.relevance_score or 0.0)
-            >= MIN_NEWSPAPER_SCORE
-        ]
-
-        # Filter by minimum score threshold (use adjusted_score if available, otherwise base score)
-        eligible_articles = [
-            a
-            for a in eligible_articles
-            if (a.adjusted_relevance_score or a.relevance_score or 0.0)
-            >= MIN_NEWSPAPER_SCORE
-        ]
-
-        # Filter out articles already in today's newspaper
-        new_articles = []
-        for article in eligible_articles:
-            appearances = article.newspaper_appearances or {}
-            if target_date_str not in appearances:
-                new_articles.append(article)
-
-        if not new_articles:
-            logger.info(f"No new articles for user {user_id} on {target_date}")
-            # Check if newspaper exists, if not create empty one
-            existing = (
-                self.db.query(Newspaper)
-                .filter(Newspaper.user_id == user_id, Newspaper.date == target_date)
-                .first()
-            )
-            if not existing:
-                return self._create_or_update_newspaper(
-                    user_id, target_date, {"today": [], "categories": {}}
-                )
-            return existing
+        for (article_id,) in articles_with_appearances:
+            article = self.db.query(Article).filter(Article.id == article_id).first()
+            if (
+                article
+                and article.newspaper_appearances
+                and target_date_str in article.newspaper_appearances
+            ):
+                existing_article_ids.add(article_id)
 
         logger.info(
-            f"Found {len(new_articles)} new articles for user {user_id} on {target_date}"
+            f"Existing newspaper has {len(existing_article_ids)} articles for {target_date}"
         )
 
         # Get user's active (non-deleted) categories (ordered by display_order)
@@ -134,16 +118,10 @@ class NewspaperGenerator:
             .all()
         )
 
-        # Get existing newspaper if it exists
-        existing_newspaper = (
-            self.db.query(Newspaper)
-            .filter(Newspaper.user_id == user_id, Newspaper.date == target_date)
-            .first()
-        )
-
         # Curate articles using rule-based algorithm
+        # Pass existing article IDs so they are preserved
         newspaper_structure = self._curate_articles_rule_based(
-            new_articles, categories, existing_newspaper, target_date
+            categories, existing_newspaper, target_date, existing_article_ids
         )
 
         # Save newspaper (create or update)
@@ -155,18 +133,19 @@ class NewspaperGenerator:
 
     def _curate_articles_rule_based(
         self,
-        new_articles: List[Article],
         categories: List[Category],
         existing_newspaper: Optional[Newspaper] = None,
         target_date: Optional[date] = None,
+        existing_article_ids: set = None,
     ) -> Dict:
         """
         Rule-based curation algorithm.
 
         Process:
-        1. Fetch ALL eligible articles from last 24 hours
-        2. Apply base filters: score threshold, not read if previously appeared
-        3. Distribute articles between Today and category sections based on quality
+        1. Preserve all articles already in today's edition
+        2. Fetch eligible articles from last 24 hours
+        3. Apply base filters: score threshold, not read if previously appeared
+        4. Distribute articles between Today and category sections based on quality
 
         "Today" Section Rules:
         - Best articles from each category (score-based selection)
@@ -178,25 +157,28 @@ class NewspaperGenerator:
         - All remaining eligible articles (not in Today)
         - Sorted by unread first, then score DESC
         - No article appears in both "Today" and category section
+
+        Important: Articles already in today's edition are NEVER removed,
+        they can only move between "today" and category sections.
         """
 
         structure = {"today": [], "categories": {}}
 
-        # Get user_id from categories or new_articles
-        user_id = (
-            categories[0].user_id
-            if categories
-            else (new_articles[0].user_id if new_articles else None)
-        )
+        if existing_article_ids is None:
+            existing_article_ids = set()
+
+        # Get user_id from categories
+        user_id = categories[0].user_id if categories else None
 
         if user_id is None:
-            logger.info("No articles or categories available")
+            logger.info("No categories available")
             return structure
 
         # STEP 1: Fetch ALL eligible articles from last 24 hours
         date_threshold = datetime.utcnow() - timedelta(hours=24)
 
-        all_articles = (
+        # Fetch articles from last 24 hours
+        recent_articles = (
             self.db.query(Article)
             .filter(
                 Article.user_id == user_id,
@@ -208,23 +190,54 @@ class NewspaperGenerator:
             .all()
         )
 
-        logger.info(f"Found {len(all_articles)} articles from last 24 hours")
-
-        # STEP 2: Apply base filters
-        # - Must meet minimum score threshold
-        # - Exclude articles that appeared in PREVIOUS editions (not today) AND are read
+        # Also fetch articles already in today's edition (they must be preserved)
         if target_date is None:
             target_date = datetime.now().date()
         target_date_str = target_date.isoformat()
 
+        existing_articles = []
+        if existing_article_ids:
+            existing_articles = (
+                self.db.query(Article)
+                .filter(
+                    Article.user_id == user_id,
+                    Article.id.in_(existing_article_ids),
+                    Article.is_archived == False,
+                )
+                .all()
+            )
+            logger.info(
+                f"Preserving {len(existing_articles)} articles already in today's edition"
+            )
+
+        # Combine: recent + existing (avoid duplicates)
+        all_articles_dict = {a.id: a for a in recent_articles}
+        for a in existing_articles:
+            if a.id not in all_articles_dict:
+                all_articles_dict[a.id] = a
+
+        all_articles = list(all_articles_dict.values())
+        logger.info(
+            f"Processing {len(all_articles)} total articles ({len(recent_articles)} recent + {len(existing_articles)} existing)"
+        )
+
+        # STEP 2: Apply base filters
+        # - Must meet minimum score threshold (OR be already in today's edition)
+        # - Exclude articles that appeared in PREVIOUS editions AND are now read
+
         eligible_articles = []
         for a in all_articles:
-            # Check score threshold
+            # Always include articles already in today's edition (never remove them)
+            if a.id in existing_article_ids:
+                eligible_articles.append(a)
+                continue
+
+            # For new articles: check score threshold
             score = a.adjusted_relevance_score or a.relevance_score or 0.0
             if score < MIN_NEWSPAPER_SCORE:
                 continue
 
-            # Check if article appeared in previous editions and is read
+            # Exclude articles that appeared in PREVIOUS editions (not today) and are read
             if a.newspaper_appearances and a.is_read:
                 # Get all dates this article appeared in (excluding today)
                 previous_dates = [
@@ -409,6 +422,10 @@ class NewspaperGenerator:
                 appearances = article.newspaper_appearances or {}
                 appearances[target_date_str] = section
                 article.newspaper_appearances = appearances
+                # Mark as modified for SQLAlchemy to detect JSON change
+                from sqlalchemy.orm.attributes import flag_modified
+
+                flag_modified(article, "newspaper_appearances")
                 logger.debug(
                     f"Tracked article {article_id} in section '{section}' for {target_date_str}"
                 )
