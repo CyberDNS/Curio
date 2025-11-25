@@ -8,6 +8,9 @@ import type {
   CategoryCreate,
   SettingsCreate,
   Newspaper,
+  SavedArticle,
+  SavedArticleWithArticle,
+  Tag,
 } from "../types";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
@@ -276,6 +279,61 @@ export const getProxiedImageUrl = (
   // For external URLs, use the proxy (though this should rarely happen now)
   const encodedUrl = encodeURIComponent(imageUrl);
   return `${API_BASE_URL}/proxy/image?url=${encodedUrl}`;
+};
+
+// Saved Articles
+export const saveArticle = async (articleData: {
+  article_id: number;
+  tag_names?: string[];
+}): Promise<SavedArticle> => {
+  const { data } = await api.post("/saved-articles/", articleData);
+  return data;
+};
+
+export const getSavedArticles = async (params?: {
+  skip?: number;
+  limit?: number;
+  tags?: string[];
+}): Promise<SavedArticleWithArticle[]> => {
+  const { data } = await api.get("/saved-articles/", {
+    params,
+    paramsSerializer: {
+      indexes: null, // Use tags=value1&tags=value2 format instead of tags[0]=value1
+    },
+  });
+  return data;
+};
+
+export const getSavedArticle = async (
+  id: number
+): Promise<SavedArticleWithArticle> => {
+  const { data } = await api.get(`/saved-articles/${id}`);
+  return data;
+};
+
+export const updateSavedArticleTags = async (
+  id: number,
+  tagData: { tag_names: string[] }
+): Promise<SavedArticle> => {
+  const { data } = await api.put(`/saved-articles/${id}/tags`, tagData);
+  return data;
+};
+
+export const unsaveArticle = async (id: number): Promise<void> => {
+  await api.delete(`/saved-articles/${id}`);
+};
+
+export const checkArticleSaved = async (
+  articleId: number
+): Promise<{ is_saved: boolean; saved_article_id: number | null }> => {
+  const { data } = await api.get(`/saved-articles/check/${articleId}`);
+  return data;
+};
+
+// Tags
+export const getTags = async (params?: { search?: string }): Promise<Tag[]> => {
+  const { data } = await api.get("/tags/", { params });
+  return data;
 };
 
 export default api;

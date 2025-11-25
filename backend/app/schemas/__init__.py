@@ -8,6 +8,14 @@ from app.schemas.newspaper import (
     NewspaperUpdate,
     NewspaperStructure,
 )
+from app.schemas.saved_article import (
+    SavedArticle,
+    SavedArticleCreate,
+    SavedArticleUpdateTags,
+    SavedArticleWithArticle,
+    Tag,
+    TagCreate,
+)
 
 __all__ = [
     "Feed",
@@ -26,4 +34,10 @@ __all__ = [
     "NewspaperCreate",
     "NewspaperUpdate",
     "NewspaperStructure",
+    "SavedArticle",
+    "SavedArticleCreate",
+    "SavedArticleUpdateTags",
+    "SavedArticleWithArticle",
+    "Tag",
+    "TagCreate",
 ]

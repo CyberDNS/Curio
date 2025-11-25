@@ -115,3 +115,32 @@ export interface Newspaper {
   created_at: string;
   updated_at: string;
 }
+
+export interface Tag {
+  id: number;
+  name: string;
+  user_id: number;
+  created_at: string;
+  usage_count?: number;
+}
+
+export interface SavedArticle {
+  id: number;
+  user_id: number;
+  article_id: number;
+  saved_at: string;
+  tags: Tag[];
+}
+
+export interface SavedArticleWithArticle extends SavedArticle {
+  article: Article;
+}
+
+export interface SavedArticleCreate {
+  article_id: number;
+  tag_names?: string[];
+}
+
+export interface SavedArticleUpdateTags {
+  tag_names: string[];
+}

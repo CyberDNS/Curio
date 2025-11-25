@@ -47,6 +47,15 @@ class FeedScheduler:
             db.commit()
             logger.info(f"Archived {archived_count} articles older than 7 days")
 
+            # Clean up old articles (>8 days) and their images
+            from app.services.article_cleanup import cleanup_old_articles
+
+            cleanup_result = cleanup_old_articles(db, days_to_keep=8)
+            logger.info(
+                f"Cleanup completed: {cleanup_result['deleted_articles']} articles "
+                f"and {cleanup_result['cleaned_images']} images deleted"
+            )
+
             # Process articles from last 24 hours with LLM
             # (Classification, scoring, duplicate detection)
             processor = LLMProcessor(db)

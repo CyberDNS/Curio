@@ -1,7 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getCategories } from "../../services/api";
-import { Home, List } from "lucide-react";
+import { Home, List, Bookmark } from "lucide-react";
 
 export default function Navigation() {
   const location = useLocation();
@@ -54,6 +54,19 @@ export default function Navigation() {
             >
               <List className="w-4 h-4" />
               All
+            </Link>
+          </li>
+          <li>
+            <Link
+              to="/saved"
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-semibold uppercase tracking-wider whitespace-nowrap border-b-2 transition-colors ${
+                isActive("/saved")
+                  ? "border-white bg-newspaper-800"
+                  : "border-transparent hover:bg-newspaper-800 hover:border-newspaper-500"
+              }`}
+            >
+              <Bookmark className="w-4 h-4" />
+              Saved
             </Link>
           </li>
         </ul>

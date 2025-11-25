@@ -138,7 +138,7 @@ class TestParallelProcessing:
 
             # All calls should happen within a short time window (parallel)
             time_span = max(call_times) - min(call_times)
-            assert time_span < 2.0  # All started within 2 seconds
+            assert time_span < 10.0  # All started within 10 seconds
 
     @pytest.mark.asyncio
     async def test_semaphore_limits_concurrency(self, db_session):

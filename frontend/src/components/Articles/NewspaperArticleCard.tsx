@@ -18,6 +18,7 @@ import { useArticleActions } from "../../hooks/useArticleActions";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import RelatedArticlesDialog from "./RelatedArticlesDialog";
 import DownvoteExplanationDialog from "./DownvoteExplanationDialog";
+import BookmarkButton from "./BookmarkButton";
 
 interface NewspaperArticleCardProps {
   article: Article;
@@ -336,6 +337,7 @@ export default function NewspaperArticleCard({
               Read More
               <ExternalLink className="w-3 h-3" />
             </button>
+            <BookmarkButton article={article} className={styles.meta} />
             <button
               onClick={handleDownvote}
               disabled={downvoteMutation.isPending}

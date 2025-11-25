@@ -22,6 +22,8 @@ from app.api.endpoints import (
     proxy,
     auth,
     newspapers,
+    saved_articles,
+    tags,
 )
 from app.services.scheduler import scheduler
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -178,6 +180,10 @@ app.include_router(newspapers.router, prefix="/api/newspapers", tags=["newspaper
 app.include_router(settings_endpoints.router, prefix="/api/settings", tags=["settings"])
 app.include_router(actions.router, prefix="/api/actions", tags=["actions"])
 app.include_router(proxy.router, prefix="/api/proxy", tags=["proxy"])
+app.include_router(
+    saved_articles.router, prefix="/api/saved-articles", tags=["saved-articles"]
+)
+app.include_router(tags.router, prefix="/api/tags", tags=["tags"])
 
 # Mount media files for serving downloaded images
 media_path = Path(settings.MEDIA_ROOT)

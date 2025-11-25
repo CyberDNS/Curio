@@ -7,6 +7,7 @@ import HomePage from "./pages/HomePage";
 import SettingsPage from "./pages/SettingsPage";
 import CategoryPage from "./pages/CategoryPage";
 import AllArticlesPage from "./pages/AllArticlesPage";
+import SavedArticlesPage from "./pages/SavedArticlesPage";
 import AuthCallbackPage from "./pages/AuthCallbackPage";
 import LoginPage from "./pages/LoginPage";
 
@@ -25,8 +26,12 @@ function App() {
                   <Layout>
                     <Routes>
                       <Route path="/" element={<HomePage />} />
-                      <Route path="/category/:slug" element={<CategoryPage />} />
+                      <Route
+                        path="/category/:slug"
+                        element={<CategoryPage />}
+                      />
                       <Route path="/all" element={<AllArticlesPage />} />
+                      <Route path="/saved" element={<SavedArticlesPage />} />
                       <Route path="/settings" element={<SettingsPage />} />
                     </Routes>
                   </Layout>

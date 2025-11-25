@@ -243,3 +243,40 @@ async def download_article_images(
         "message": "Article images downloaded successfully",
         "updated_count": updated_count,
     }
+
+
+@router.post("/cleanup-old-articles")
+@limiter.limit("5/hour")
+async def cleanup_old_articles_endpoint(
+    request: Request,
+    days_to_keep: int = 8,
+    dry_run: bool = False,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Clean up old articles and their images.
+
+    Removes articles older than specified days that are not saved.
+    Also removes orphaned image files.
+
+    Args:
+        days_to_keep: Number of days to keep articles (default 8)
+        dry_run: If True, only returns statistics without deleting anything
+    """
+    from app.services.article_cleanup import ArticleCleanupService
+
+    service = ArticleCleanupService(db)
+
+    if dry_run:
+        stats = service.get_cleanup_stats(days_to_keep)
+        return {
+            "message": "Dry run completed - no articles deleted",
+            "statistics": stats,
+        }
+    else:
+        result = service.cleanup_old_articles(days_to_keep)
+        return {
+            "message": f"Cleanup completed - deleted {result['deleted_articles']} articles and {result['cleaned_images']} images",
+            "result": result,
+        }
