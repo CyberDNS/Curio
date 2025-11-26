@@ -177,7 +177,6 @@ def test_article(db_session, test_user, test_feed, test_category) -> Article:
         summary="Test summary",
         relevance_score=0.75,
         is_read=False,
-        is_archived=False,
     )
     db_session.add(article)
     db_session.commit()
@@ -203,7 +202,6 @@ def multiple_articles(db_session, test_user, test_feed, test_category) -> list[A
             published_date=datetime.now(timezone.utc) - timedelta(hours=i),
             relevance_score=0.5 + (i * 0.1),
             is_read=False,
-            is_archived=False,
         )
         db_session.add(article)
         articles.append(article)

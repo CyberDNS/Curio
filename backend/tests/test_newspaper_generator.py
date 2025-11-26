@@ -37,7 +37,6 @@ class TestNewspaperGenerator:
                 relevance_score=0.95,
                 summary=f"Summary {i}",
                 is_read=False,
-                is_archived=False,
                 is_duplicate=False,
             )
             articles.append(article)
@@ -91,7 +90,6 @@ class TestNewspaperGenerator:
                     relevance_score=0.95,
                     summary=f"Summary {i}",
                     is_read=False,
-                    is_archived=False,
                     is_duplicate=False,
                 )
             )
@@ -109,7 +107,6 @@ class TestNewspaperGenerator:
                     relevance_score=0.75,
                     summary=f"Summary {i}",
                     is_read=False,
-                    is_archived=False,
                     is_duplicate=False,
                 )
             )
@@ -127,7 +124,6 @@ class TestNewspaperGenerator:
                     relevance_score=0.65,
                     summary=f"Summary {i}",
                     is_read=False,
-                    is_archived=False,
                     is_duplicate=False,
                 )
             )
@@ -168,7 +164,6 @@ class TestNewspaperGenerator:
                     relevance_score=0.95,
                     summary=f"Summary {i}",
                     is_read=False,
-                    is_archived=False,
                     is_duplicate=False,
                 )
             )
@@ -209,7 +204,6 @@ class TestNewspaperGenerator:
             relevance_score=0.70,  # Lower score - might move to category section
             summary="Summary",
             is_read=False,
-            is_archived=False,
             is_duplicate=False,
             newspaper_appearances={today_str: "tech"},
         )
@@ -226,7 +220,6 @@ class TestNewspaperGenerator:
             relevance_score=0.95,  # Higher score - should go to today section
             summary="Summary",
             is_read=False,
-            is_archived=False,
             is_duplicate=False,
         )
         db_session.add(new_article)
@@ -273,7 +266,6 @@ class TestNewspaperGenerator:
             relevance_score=0.95,
             summary="Summary",
             is_read=True,  # User read it
-            is_archived=False,
             is_duplicate=False,
             newspaper_appearances={yesterday: "today"},  # Appeared yesterday
         )
@@ -317,7 +309,6 @@ class TestNewspaperGenerator:
             relevance_score=0.95,
             summary="Summary",
             is_read=False,  # Still unread
-            is_archived=False,
             is_duplicate=False,
             newspaper_appearances={yesterday: "today"},  # Appeared yesterday
         )
@@ -357,7 +348,6 @@ class TestNewspaperGenerator:
             relevance_score=0.95,
             summary="Summary",
             is_read=False,
-            is_archived=False,
             is_duplicate=False,
         )
         db_session.add(old_article)
@@ -373,7 +363,6 @@ class TestNewspaperGenerator:
             relevance_score=0.95,
             summary="Summary",
             is_read=False,
-            is_archived=False,
             is_duplicate=False,
         )
         db_session.add(recent_article)
@@ -417,7 +406,6 @@ class TestNewspaperGenerator:
                 relevance_score=0.70,
                 summary=f"Summary {i}",
                 is_read=False,
-                is_archived=False,
                 is_duplicate=False,
                 newspaper_appearances={today_str: "today"},
             )
@@ -445,7 +433,6 @@ class TestNewspaperGenerator:
                 relevance_score=0.95,
                 summary=f"Summary {i}",
                 is_read=False,
-                is_archived=False,
                 is_duplicate=False,
             )
             db_session.add(article)
@@ -487,7 +474,6 @@ class TestNewspaperGenerator:
             relevance_score=0.65,
             summary="Summary",
             is_read=False,
-            is_archived=False,
             is_duplicate=False,
             newspaper_appearances={today_str: "today"},
         )
@@ -506,7 +492,6 @@ class TestNewspaperGenerator:
                     relevance_score=0.95,
                     summary=f"Summary {i}",
                     is_read=False,
-                    is_archived=False,
                     is_duplicate=False,
                 )
             )
@@ -555,7 +540,6 @@ class TestNewspaperGenerator:
             relevance_score=0.40,  # Below threshold
             summary="Summary",
             is_read=False,
-            is_archived=False,
             is_duplicate=False,
             newspaper_appearances={today_str: "tech"},
         )
@@ -599,7 +583,6 @@ class TestNewspaperGenerator:
             relevance_score=0.95,
             summary="Summary",
             is_read=True,  # User read it
-            is_archived=False,
             is_duplicate=False,
             newspaper_appearances={yesterday: "today"},
         )
@@ -652,7 +635,6 @@ class TestNewspaperGenerator:
                         relevance_score=score,
                         summary=f"Summary {i}",
                         is_read=False,
-                        is_archived=False,
                         is_duplicate=False,
                     )
                 )

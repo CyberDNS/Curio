@@ -198,7 +198,6 @@ export const runFullUpdate = async (): Promise<{
   message: string;
   status?: string;
   new_articles?: number;
-  archived_articles?: number;
   processed_articles?: number;
   today_count?: number;
   category_count?: number;

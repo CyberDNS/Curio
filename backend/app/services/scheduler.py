@@ -21,7 +21,7 @@ class FeedScheduler:
 
         New pipeline:
         1. Fetch new articles from RSS feeds (7-day window for duplicate prevention)
-        2. Archive old articles (>7 days)
+        2. Clean up old articles (>8 days)
         3. Process articles from last 24 hours with LLM (classify + score + deduplicate)
         4. Generate/update newspapers for all users (rule-based, incremental)
         """
@@ -31,21 +31,6 @@ class FeedScheduler:
             fetcher = RSSFetcher(db)
             article_count = await fetcher.fetch_all_feeds(days_back=7)
             logger.info(f"Scheduled fetch completed: {article_count} new articles")
-
-            # Archive articles older than 7 days
-            from app.models.article import Article
-            from datetime import datetime, timedelta, timezone
-
-            cutoff_date = datetime.now(timezone.utc) - timedelta(days=7)
-            archived_count = (
-                db.query(Article)
-                .filter(
-                    Article.published_date < cutoff_date, Article.is_archived == False
-                )
-                .update({"is_archived": True})
-            )
-            db.commit()
-            logger.info(f"Archived {archived_count} articles older than 7 days")
 
             # Clean up old articles (>8 days) and their images
             from app.services.article_cleanup import cleanup_old_articles

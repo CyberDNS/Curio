@@ -182,7 +182,6 @@ class NewspaperGenerator:
             self.db.query(Article)
             .filter(
                 Article.user_id == user_id,
-                Article.is_archived == False,
                 Article.is_duplicate == False,
                 Article.created_at >= date_threshold,
                 Article.summary.isnot(None),  # Must be processed
@@ -202,7 +201,6 @@ class NewspaperGenerator:
                 .filter(
                     Article.user_id == user_id,
                     Article.id.in_(existing_article_ids),
-                    Article.is_archived == False,
                 )
                 .all()
             )

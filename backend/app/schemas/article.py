@@ -21,7 +21,6 @@ class ArticleCreate(ArticleBase):
 
 class ArticleUpdate(BaseModel):
     is_read: Optional[bool] = None
-    is_archived: Optional[bool] = None
 
 
 class Article(ArticleBase):
@@ -63,7 +62,6 @@ class Article(ArticleBase):
 
     # Metadata
     is_read: bool = False  # False = "NEW" article, True = read
-    is_archived: bool = False
     created_at: datetime
     updated_at: datetime
 

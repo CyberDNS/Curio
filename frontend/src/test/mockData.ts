@@ -52,7 +52,6 @@ export const mockArticle: Article = {
   duplicate_of_id: null,
   title_embedding: null,
   is_read: false,
-  is_archived: false,
   image_urls: ["https://example.com/image.jpg"],
   newspaper_appearances: {},
   created_at: "2024-01-01T00:00:00Z",

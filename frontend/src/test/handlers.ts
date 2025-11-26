@@ -23,7 +23,7 @@ export const handlers = [
   }),
 
   http.put(`${API_BASE_URL}/articles/:id`, async ({ request, params }) => {
-    const updates = await request.json();
+    const updates = (await request.json()) as Record<string, any>;
     const article = mockArticles.find((a) => a.id === Number(params.id));
     if (!article) {
       return new HttpResponse(null, { status: 404 });
@@ -45,7 +45,7 @@ export const handlers = [
   }),
 
   http.post(`${API_BASE_URL}/categories/`, async ({ request }) => {
-    const data = await request.json();
+    const data = (await request.json()) as Record<string, any>;
     return HttpResponse.json({
       id: 4,
       ...data,
@@ -55,7 +55,7 @@ export const handlers = [
   }),
 
   http.put(`${API_BASE_URL}/categories/:id`, async ({ request, params }) => {
-    const updates = await request.json();
+    const updates = (await request.json()) as Record<string, any>;
     const category = mockCategories.find((c) => c.id === Number(params.id));
     if (!category) {
       return new HttpResponse(null, { status: 404 });
@@ -73,12 +73,12 @@ export const handlers = [
   }),
 
   http.post(`${API_BASE_URL}/feeds/`, async ({ request }) => {
-    const data = await request.json();
+    const data = (await request.json()) as Record<string, any>;
     return HttpResponse.json({ id: 3, ...data, is_active: true });
   }),
 
   http.put(`${API_BASE_URL}/feeds/:id`, async ({ request, params }) => {
-    const updates = await request.json();
+    const updates = (await request.json()) as Record<string, any>;
     const feed = mockFeeds.find((f) => f.id === Number(params.id));
     if (!feed) {
       return new HttpResponse(null, { status: 404 });
@@ -113,7 +113,6 @@ export const handlers = [
     return HttpResponse.json({
       message: "Full update complete",
       new_articles: 15,
-      archived_articles: 5,
       processed_articles: 10,
       today_count: 20,
       category_count: 30,
@@ -148,7 +147,7 @@ export const handlers = [
   }),
 
   http.post(`${API_BASE_URL}/settings/`, async ({ request }) => {
-    const data = await request.json();
+    const data = (await request.json()) as Record<string, any>;
     return HttpResponse.json(data);
   }),
 

@@ -129,13 +129,12 @@ class TestArticlesAPI:
         """Test updating article status."""
         response = authenticated_client.put(
             f"/api/articles/{test_article.id}",
-            json={"is_read": True, "is_archived": False},
+            json={"is_read": True},
         )
 
         assert response.status_code == 200
         data = response.json()
         assert data["is_read"] is True
-        assert data["is_archived"] is False
 
     def test_mark_all_read(self, authenticated_client, multiple_articles):
         """Test marking all articles as read."""

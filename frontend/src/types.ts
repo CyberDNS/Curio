@@ -57,7 +57,6 @@ export interface Article {
   newspaper_appearances: Record<string, string> | null; // { "2025-11-22": "today" | "technology" | ... }
   // Metadata
   is_read: boolean; // false = "NEW" article, true = read
-  is_archived: boolean;
   created_at: string;
   updated_at: string;
 }

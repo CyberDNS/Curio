@@ -162,24 +162,11 @@ async def run_full_update(
         fetcher = RSSFetcher(db)
         new_articles = await fetcher.fetch_all_feeds(days_back=7)
 
-        # Step 2: Archive old articles (>7 days)
-        cutoff_date = datetime.now(timezone.utc) - timedelta(days=7)
-        archived_count = (
-            db.query(Article)
-            .filter(
-                Article.published_date < cutoff_date,
-                Article.is_archived == False,
-                Article.user_id == current_user.id,
-            )
-            .update({"is_archived": True})
-        )
-        db.commit()
-
-        # Step 3: Process articles with LLM (last 24 hours)
+        # Step 2: Process articles with LLM (last 24 hours)
         processor = LLMProcessor(db)
         processed = await processor.process_articles(user_id=current_user.id)
 
-        # Step 4: Regenerate today's newspaper
+        # Step 3: Regenerate today's newspaper
         generator = NewspaperGenerator(db)
         await generator.generate_newspaper_for_user(current_user.id)
 

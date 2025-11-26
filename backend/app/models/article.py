@@ -68,7 +68,6 @@ class Article(Base):
 
     # Metadata
     is_read = Column(Boolean, default=False)  # False = "NEW" article, True = read
-    is_archived = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

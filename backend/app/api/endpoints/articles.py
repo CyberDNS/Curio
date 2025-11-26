@@ -71,8 +71,6 @@ def get_articles(
     if unread_only:
         query = query.filter(Article.is_read == False)
 
-    query = query.filter(Article.is_archived == False)
-
     # Balanced mode: Top articles from each category (Today page algorithm)
     if balanced and selected_only:
         from app.models.category import Category
@@ -104,7 +102,6 @@ def get_articles(
                     Article.user_id == current_user.id,
                     Article.category_id == category.id,
                     Article.relevance_score >= 0.6,  # Recommended articles
-                    Article.is_archived == False,
                 )
             )
 
@@ -169,7 +166,7 @@ def update_article(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Update article status (read/archived) for the current user."""
+    """Update article status (read) for the current user."""
     # Validate article_id
     validate_positive_int(article_id, "article_id")
 

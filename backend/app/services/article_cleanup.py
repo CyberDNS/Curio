@@ -76,6 +76,15 @@ class ArticleCleanupService:
 
         # Delete articles
         if deleted_count > 0:
+            # First, break circular dependencies by setting duplicate_of_id to NULL
+            # for any articles that reference articles being deleted
+            article_ids_set = set(article_ids)
+            self.db.query(Article).filter(
+                Article.duplicate_of_id.in_(article_ids_set)
+            ).update({"duplicate_of_id": None}, synchronize_session=False)
+            self.db.commit()
+
+            # Now delete the articles
             for article in articles_to_delete:
                 self.db.delete(article)
 
