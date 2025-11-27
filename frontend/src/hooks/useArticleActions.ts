@@ -3,7 +3,7 @@ import { updateArticle, reprocessArticle } from "../services/api";
 
 /**
  * Shared hook for common article actions (mark as read, reprocess)
- * Consolidates duplicate logic from ArticleCard and NewspaperArticleCard
+ * Used by ArticleCard, ArticleListItem, and ArticleActions components
  */
 export function useArticleActions() {
   const queryClient = useQueryClient();
@@ -24,7 +24,11 @@ export function useArticleActions() {
     },
   });
 
-  const handleClick = (article: { id: number; is_read: boolean; link: string }) => {
+  const handleClick = (article: {
+    id: number;
+    is_read: boolean;
+    link: string;
+  }) => {
     if (!article.is_read) {
       markReadMutation.mutate(article.id);
     }

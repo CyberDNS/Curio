@@ -1,20 +1,33 @@
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Loader2, AlertCircle } from "lucide-react";
-import { getNewspaperByDate, getTodayNewspaper, getNewspaperArticles, getArticles } from "../../services/api";
+import {
+  getNewspaperByDate,
+  getTodayNewspaper,
+  getNewspaperArticles,
+  getArticles,
+} from "../../services/api";
 import { useNewspaper } from "../../contexts/NewspaperContext";
-import NewspaperGrid from "./NewspaperGrid";
+import { ArticleLayoutView } from "./index";
+import type { ViewMode } from "./useViewMode";
 
 interface NewspaperViewProps {
   /** Category slug for filtering, or null for "today" (all categories) */
   categorySlug?: string | null;
   /** Optional fallback when no newspaper exists (only for today/homepage) */
   showFallback?: boolean;
+  /** View mode (grid/list) - controlled externally */
+  viewMode?: ViewMode;
 }
 
-export default function NewspaperView({ categorySlug = null, showFallback = false }: NewspaperViewProps) {
+export default function NewspaperView({
+  categorySlug = null,
+  showFallback = false,
+  viewMode = "grid",
+}: NewspaperViewProps) {
   const { selectedDate } = useNewspaper();
-  const isToday = format(selectedDate, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
+  const isToday =
+    format(selectedDate, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
 
   // Get newspaper for selected date
   const { data: newspaper, isLoading: isLoadingNewspaper } = useQuery({
@@ -42,9 +55,11 @@ export default function NewspaperView({ categorySlug = null, showFallback = fals
     enabled: showFallback && !newspaper && !isLoadingNewspaper,
   });
 
-  const displayArticles = articles.length > 0 ? articles : (showFallback ? fallbackArticles : []);
+  const displayArticles =
+    articles.length > 0 ? articles : showFallback ? fallbackArticles : [];
   const isLoading = isLoadingNewspaper || isLoadingArticles;
-  const showingFallback = showFallback && !newspaper && fallbackArticles.length > 0;
+  const showingFallback =
+    showFallback && !newspaper && fallbackArticles.length > 0;
 
   if (isLoading) {
     return (
@@ -63,8 +78,8 @@ export default function NewspaperView({ categorySlug = null, showFallback = fals
           <div className="text-sm text-yellow-800">
             <p className="font-semibold mb-1">No newspaper edition yet</p>
             <p>
-              The newspaper for this date is being generated. Articles are processed and curated
-              automatically every hour.
+              The newspaper for this date is being generated. Articles are
+              processed and curated automatically every hour.
             </p>
           </div>
         </div>
@@ -85,11 +100,18 @@ export default function NewspaperView({ categorySlug = null, showFallback = fals
         </div>
       )}
 
+      {/* View toggle and articles */}
+      {displayArticles.length > 0 && (
+        <ArticleLayoutView articles={displayArticles} viewMode={viewMode} />
+      )}
+
       {/* No articles message - Newspaper-style centered text */}
       {displayArticles.length === 0 && (newspaper || showingFallback) && (
         <div className="text-center py-12">
           <p className="text-xl font-serif text-newspaper-600">
-            {categorySlug ? "No articles in this section." : "No articles available yet."}
+            {categorySlug
+              ? "No articles in this section."
+              : "No articles available yet."}
           </p>
           <p className="text-sm text-newspaper-500 mt-2">
             {categorySlug
@@ -98,9 +120,6 @@ export default function NewspaperView({ categorySlug = null, showFallback = fals
           </p>
         </div>
       )}
-
-      {/* Articles grid */}
-      {displayArticles.length > 0 && <NewspaperGrid articles={displayArticles} />}
     </>
   );
 }

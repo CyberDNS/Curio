@@ -1,20 +1,29 @@
 import { useMemo } from "react";
 import type { Article } from "../../types";
-import NewspaperArticleCard from "./NewspaperArticleCard";
+import type { ArticleCardSize, ArticleDisplayConfig } from "./types";
+import { ArticleCard, ArticleListItem, NewspaperGrid, ArticleList } from "./index";
 
-interface NewspaperGridProps {
+interface ArticleLayoutViewProps {
   articles: Article[];
+  viewMode?: "grid" | "list";
+  config?: Partial<ArticleDisplayConfig>;
 }
-
-type ArticleSize = "hero" | "large" | "medium" | "small";
 
 interface LayoutArticle {
   article: Article;
-  size: ArticleSize;
+  size: ArticleCardSize;
 }
 
-export default function NewspaperGrid({ articles }: NewspaperGridProps) {
-  // Generate a deterministic but daily-changing layout
+/**
+ * Displays articles in either grid or list layout
+ * Grid layout uses newspaper-style sizing based on relevance scores
+ */
+export default function ArticleLayoutView({
+  articles,
+  viewMode = "grid",
+  config,
+}: ArticleLayoutViewProps) {
+  // Generate a deterministic but daily-changing layout for grid view
   const layout = useMemo(() => {
     if (articles.length === 0) return [];
 
@@ -31,8 +40,6 @@ export default function NewspaperGrid({ articles }: NewspaperGridProps) {
       return randomSeed / 233280;
     };
 
-    // Preserve the order from the backend (new articles first, then existing)
-    // The backend already sorts by relevance within each group
     const layoutArticles: LayoutArticle[] = [];
     let remainingArticles = [...articles];
 
@@ -46,7 +53,7 @@ export default function NewspaperGrid({ articles }: NewspaperGridProps) {
       const score = article.relevance_score;
       const rand = seededRandom();
 
-      let size: ArticleSize;
+      let size: ArticleCardSize;
 
       // Hero article (max 1 per 15 articles, only for very high scores)
       if (
@@ -90,55 +97,36 @@ export default function NewspaperGrid({ articles }: NewspaperGridProps) {
     );
   }
 
+  // List view
+  if (viewMode === "list") {
+    return (
+      <ArticleList>
+        {layout.map(({ article }) => (
+          <ArticleListItem
+            key={article.id}
+            article={article}
+            config={config}
+          />
+        ))}
+      </ArticleList>
+    );
+  }
+
+  // Grid view (newspaper-style)
   return (
-    <div className="newspaper-grid">
+    <NewspaperGrid>
       {layout.map(({ article, size }) => (
         <div
           key={article.id}
-          className={`newspaper-grid-item newspaper-grid-item-${size}`}
+          className={`article-${size}`}
         >
-          <NewspaperArticleCard article={article} size={size} />
+          <ArticleCard
+            article={article}
+            size={size}
+            config={config}
+          />
         </div>
       ))}
-
-      <style>{`
-        .newspaper-grid {
-          display: grid;
-          grid-template-columns: repeat(1, 1fr);
-          gap: 1.5rem;
-          grid-auto-flow: dense;
-        }
-
-        @media (min-width: 768px) {
-          .newspaper-grid {
-            grid-template-columns: repeat(2, 1fr);
-          }
-          .newspaper-grid-item-hero {
-            grid-column: span 2;
-          }
-          .newspaper-grid-item-large {
-            grid-column: span 2;
-          }
-        }
-
-        @media (min-width: 1024px) {
-          .newspaper-grid {
-            grid-template-columns: repeat(4, 1fr);
-          }
-          .newspaper-grid-item-hero {
-            grid-column: span 4;
-          }
-          .newspaper-grid-item-large {
-            grid-column: span 2;
-          }
-          .newspaper-grid-item-medium {
-            grid-column: span 1;
-          }
-          .newspaper-grid-item-small {
-            grid-column: span 1;
-          }
-        }
-      `}</style>
-    </div>
+    </NewspaperGrid>
   );
 }

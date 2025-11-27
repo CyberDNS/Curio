@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import desc
-from typing import List, Optional
+from sqlalchemy import desc, func
+from typing import List, Optional, Dict
 from datetime import datetime, timedelta, timezone
 import logging
 from app.core.database import get_db
@@ -135,6 +135,72 @@ def get_articles(
     articles = query.offset(skip).limit(limit).all()
 
     return articles
+
+
+@router.get("/unread-counts")
+def get_unread_counts(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Dict[str, int]:
+    """Get unread article counts from today's newspaper edition.
+
+    Returns a dictionary with:
+    - "today": unread count in the Today section
+    - category slugs as keys with their unread counts in the newspaper
+
+    Only counts articles that are in the current newspaper edition.
+    """
+    from app.models.newspaper import Newspaper
+    from app.models.category import Category
+
+    today = datetime.now().date()
+
+    # Get today's newspaper
+    newspaper = (
+        db.query(Newspaper)
+        .filter(Newspaper.user_id == current_user.id, Newspaper.date == today)
+        .first()
+    )
+
+    # If no newspaper yet, return zeros
+    if not newspaper or not newspaper.structure:
+        return {"today": 0}
+
+    # Get article IDs from the newspaper structure
+    today_article_ids = newspaper.structure.get("today", [])
+    categories_structure = newspaper.structure.get("categories", {})
+
+    result: Dict[str, int] = {}
+
+    # Count unread in Today section
+    if today_article_ids:
+        today_unread = (
+            db.query(Article)
+            .filter(Article.id.in_(today_article_ids))
+            .filter(Article.user_id == current_user.id)
+            .filter(Article.is_read == False)
+            .count()
+        )
+        result["today"] = today_unread
+    else:
+        result["today"] = 0
+
+    # Count unread per category section
+    categories = db.query(Category).filter(Category.user_id == current_user.id).all()
+    slug_to_category = {cat.slug: cat for cat in categories}
+
+    for category_slug, article_ids in categories_structure.items():
+        if article_ids and category_slug in slug_to_category:
+            count = (
+                db.query(Article)
+                .filter(Article.id.in_(article_ids))
+                .filter(Article.user_id == current_user.id)
+                .filter(Article.is_read == False)
+                .count()
+            )
+            result[category_slug] = count
+
+    return result
 
 
 @router.get("/{article_id}", response_model=ArticleSchema)

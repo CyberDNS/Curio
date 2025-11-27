@@ -162,6 +162,11 @@ export const explainScoreAdjustment = async (
   return data;
 };
 
+export const getUnreadCounts = async (): Promise<Record<string, number>> => {
+  const { data } = await api.get("/articles/unread-counts");
+  return data;
+};
+
 // Categories
 export const getCategories = async (): Promise<Category[]> => {
   const { data } = await api.get("/categories/");

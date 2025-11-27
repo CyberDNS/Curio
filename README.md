@@ -1,359 +1,271 @@
-# Curio - Your Personalized News Aggregator
+# Curio - Your AI-Powered Personal Newspaper
 
 <div align="center">
 
 <img src="assets/Curio Logo.png" alt="Curio Logo" width="200"/>
 
-**AI-powered RSS feed aggregator with newspaper-style presentation**
+**Transform your RSS feeds into a beautifully curated daily newspaper**
 
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue?logo=docker)](https://www.docker.com/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688?logo=fastapi)](https://fastapi.tiangolo.com/)
-[![React](https://img.shields.io/badge/React-Frontend-61DAFB?logo=react)](https://react.dev/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Database-4169E1?logo=postgresql)](https://www.postgresql.org/)
+[![Unraid](https://img.shields.io/badge/Unraid-Compatible-orange)](https://unraid.net/)
+[![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
 </div>
 
-## Overview
+## What is Curio?
 
-Curio is a self-hosted, personalized news aggregator that fetches content from your favorite RSS feeds and uses AI to select and condense articles based on your interests. With a beautiful newspaper-inspired interface, Curio brings you only the news that matters to you.
+Curio is a self-hosted news aggregator that brings back the joy of reading a morning newspaper. It collects articles from your favorite RSS feeds, uses AI to curate and summarize them based on your interests, and presents everything in a beautiful newspaper-style layout.
 
-### Key Features
+**Perfect for:** News enthusiasts, researchers, professionals who want to stay informed, or anyone tired of endless scrolling through cluttered news apps.
 
-- 📰 **Newspaper-Style UI** - Beautiful, classic newspaper layout for comfortable reading
-- 🤖 **AI-Powered Curation** - Uses LLM to select and summarize articles based on your preferences
-- ⚡ **Parallel LLM Processing** - Fast, efficient article analysis with rate limiting (up to 3-5x faster)
-- 📡 **RSS Feed Management** - Add and organize multiple RSS feeds
-- 🏷️ **Category Organization** - Organize feeds into custom categories (rubriques)
-- 🐳 **Easy Deployment** - Docker container ready for Unraid, Home Assistant, and other platforms
-- 🔄 **Automatic Updates** - Background scheduler fetches new content automatically
-- 💾 **PostgreSQL Database** - Reliable data storage with full history
-- ⚙️ **Customizable** - Configure your interests and AI behavior through settings
+## ✨ Features
+
+### 📰 Daily Newspaper Experience
+
+- **Newspaper-style layout** with hero articles, featured stories, and regular news
+- **Daily editions** - Fresh curated content every day
+- **Grid or list view** - Switch between layouts based on your preference
+- **Responsive design** - Looks great on desktop, tablet, and mobile
+
+### 🤖 AI-Powered Curation
+
+- **Smart article selection** - AI picks the most relevant articles for you
+- **Enhanced titles & summaries** - AI-generated titles and concise summaries
+- **Relevance scoring** - Articles ranked by importance to your interests
+- **Duplicate detection** - No more seeing the same story from multiple sources
+
+### 📂 Organization & Reading
+
+- **Categories** - Organize feeds into topics (Tech, Science, Business, etc.)
+- **Saved articles** - Bookmark articles to read later
+- **Unread indicators** - Track what you haven't read yet
+- **Auto mark-as-read** - Articles marked read as you scroll through them
+
+### ⚙️ Customization
+
+- **Custom newspaper title** - Personalize your daily edition
+- **Interest configuration** - Tell the AI what topics matter to you
+- **Multiple RSS feeds** - Add unlimited feeds from any source
+- **Flexible scheduling** - Control how often feeds are fetched
 
 ## Screenshots
 
 <div align="center">
 
-### Main Newspaper View
+### Today's Edition
 
 <img src="assets/SCR-20251122-jhgq.png" alt="Curio Main View" width="800"/>
 
-### Article Reading
+### Reading Articles
 
 <img src="assets/SCR-20251122-jhne.png" alt="Article View" width="800"/>
 
-### Settings & Configuration
+### Settings
 
 <img src="assets/SCR-20251122-jhrv.png" alt="Settings View" width="800"/>
 
 </div>
 
-## Quick Start
+## 🚀 Installation
 
 ### Prerequisites
 
-- Docker and Docker Compose
-- OpenAI API key (for AI features)
+- **Docker** - For running the application
+- **OpenAI API Key** - For AI features ([Get one here](https://platform.openai.com/api-keys))
+- **PostgreSQL** - Database (included in Docker setup)
 
-### Installation
+### Option 1: Unraid (Recommended for Home Servers)
 
-1. **Clone the repository:**
+1. **Install from Docker Hub:**
+
+   - Go to the **Docker** tab in Unraid
+   - Click **Add Container**
+   - Set **Repository** to: `ghcr.io/cyberdns/curio:1`
+
+2. **Configure the container:**
+
+   - **Network Type:** `bridge`
+   - **Port:** `8080` → `8080` (WebUI)
+
+3. **Add required environment variables:**
+   | Variable | Value |
+   |----------|-------|
+   | `OPENAI_API_KEY` | Your OpenAI API key |
+   | `SECRET_KEY` | Random string for security (min 32 chars) |
+   | `POSTGRES_PASSWORD` | Choose a secure password |
+   | `DEV_MODE` | `true` (for single-user setup) |
+
+4. **Add volume mappings:**
+
+   - `/mnt/user/appdata/curio/data` → `/data` (Database storage)
+
+5. **Apply and start** the container
+
+6. **Access Curio** at `http://your-server-ip:8080`
+
+### Option 2: Docker Compose
+
+1. **Create a directory and docker-compose.yml:**
 
    ```bash
-   git clone https://github.com/yourusername/curio.git
-   cd curio
+   mkdir curio && cd curio
    ```
 
-2. **Create environment file:**
+   ```yaml
+   version: "3.8"
 
-   ```bash
-   cp .env.example .env
+   services:
+     curio:
+       image: ghcr.io/cyberdns/curio:latest
+       ports:
+         - "8080:8080"
+       environment:
+         - OPENAI_API_KEY=sk-your-api-key
+         - SECRET_KEY=your-secret-key-min-32-characters
+         - POSTGRES_PASSWORD=secure-password
+         - DEV_MODE=true
+       volumes:
+         - curio-data:/data
+       restart: unless-stopped
+
+   volumes:
+     curio-data:
    ```
 
-3. **Edit `.env` and add your configuration:**
-
-   ```env
-   # Required: Add your OpenAI API key
-   OPENAI_API_KEY=sk-your-api-key-here
-
-   # Optional: Customize these settings
-   POSTGRES_PASSWORD=your-secure-password
-   SECRET_KEY=your-secret-key
-   RSS_FETCH_INTERVAL=60
-   ```
-
-4. **Start the application:**
+2. **Start the application:**
 
    ```bash
    docker-compose up -d
    ```
 
-5. **Access Curio:**
-   - Frontend: http://localhost:3000
-   - Backend API: http://localhost:8000
-   - API Docs: http://localhost:8000/docs
+3. **Access Curio** at `http://localhost:8080`
 
-### First Time Setup
+### Option 3: Separate Containers (Advanced)
 
-1. Open http://localhost:3000/settings
-2. Go to **AI Settings** tab and configure your interests
-3. Go to **Categories** tab and create some categories (e.g., Technology, Science, Business)
-4. Go to **RSS Feeds** tab and add your favorite feeds
-5. Click the **Refresh** button in the header to fetch articles
-6. Process articles with AI using the **Process New Articles** button in AI Settings
+For more control, you can run backend and frontend separately. See [DOCKER.md](DOCKER.md) for detailed instructions.
 
-## Development
+## 📖 Getting Started
 
-### Using DevContainer (Recommended)
+### 1. Configure Your Interests
 
-This project includes a complete devcontainer setup for VSCode:
-
-1. Install [VSCode](https://code.visualstudio.com/) and [Docker](https://www.docker.com/)
-2. Install the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
-3. Open the project in VSCode
-4. Click "Reopen in Container" when prompted
-5. The development environment will be automatically configured
-
-### Manual Development Setup
-
-**Backend:**
-
-```bash
-cd backend
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
-
-# Set up database environment variables
-export POSTGRES_USER="curio"
-export POSTGRES_PASSWORD="curio"
-export POSTGRES_HOST="localhost"
-export POSTGRES_PORT="5432"
-export POSTGRES_DB="curio"
-alembic upgrade head
-
-# Run development server
-uvicorn app.main:app --reload
-```
-
-**Frontend:**
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-## Architecture
-
-### Technology Stack
-
-- **Backend**: Python 3.12, FastAPI, SQLAlchemy
-- **Frontend**: React 18, TypeScript, Vite, TailwindCSS
-- **Database**: PostgreSQL 16
-- **LLM**: OpenAI API (GPT-4)
-- **RSS Parser**: feedparser
-- **Scheduler**: APScheduler
-
-### Project Structure
-
-```
-curio/
-├── backend/
-│   ├── app/
-│   │   ├── api/          # API endpoints
-│   │   ├── core/         # Configuration and database
-│   │   ├── models/       # SQLAlchemy models
-│   │   ├── schemas/      # Pydantic schemas
-│   │   ├── services/     # Business logic (RSS, LLM, scheduler)
-│   │   └── main.py       # FastAPI application
-│   ├── alembic/          # Database migrations
-│   └── requirements.txt
-├── frontend/
-│   ├── src/
-│   │   ├── components/   # React components
-│   │   ├── pages/        # Page components
-│   │   ├── services/     # API client
-│   │   └── types.ts      # TypeScript types
-│   └── package.json
-├── .devcontainer/        # Development container config
-├── docker-compose.yml    # Production deployment
-└── README.md
-```
-
-## Configuration
-
-### Environment Variables
-
-| Variable               | Description                  | Default                   |
-| ---------------------- | ---------------------------- | ------------------------- |
-| `OPENAI_API_KEY`       | OpenAI API key (required)    | -                         |
-| `LLM_MODEL`            | OpenAI model to use          | `gpt-4-turbo-preview`     |
-| `LLM_MAX_CONCURRENT`   | Max concurrent LLM API calls | `5`                       |
-| `LLM_TPM_LIMIT`        | Tokens per minute limit      | `90000`                   |
-| `LLM_MAX_INPUT_TOKENS` | Max tokens per API request   | `2000`                    |
-| `POSTGRES_PASSWORD`    | Database password            | `curio`                   |
-| `SECRET_KEY`           | App secret key               | `change-me-in-production` |
-| `RSS_FETCH_INTERVAL`   | Minutes between feed updates | `60`                      |
-| `BACKEND_PORT`         | Backend port                 | `8000`                    |
-| `FRONTEND_PORT`        | Frontend port                | `3000`                    |
-
-> 💡 **Performance Tip:** Curio now supports parallel LLM processing! Adjust `LLM_MAX_CONCURRENT` and `LLM_TPM_LIMIT` based on your OpenAI tier for optimal speed. See [Parallel LLM Guide](QUICKREF_PARALLEL_LLM.md) for details.
-
-### AI Prompt Customization
-
-Configure your interests in the **Settings > AI Settings** page. Example:
+Go to **Settings → AI Settings** and describe what topics interest you:
 
 ```
 I'm interested in:
-- Artificial Intelligence and Machine Learning developments
-- Climate change and environmental news
-- Space exploration and astronomy
-- Cybersecurity and privacy
-- Open source software projects
+- Technology and software development
+- AI and machine learning breakthroughs
+- Science discoveries and space exploration
+- Business and startup news
 
-Please prioritize:
-- In-depth technical articles over news headlines
-- Research papers and scientific discoveries
-- Long-form investigative journalism
+I prefer:
+- In-depth technical articles
+- Breaking news about major developments
+- Research papers and analysis
 
-Avoid:
-- Celebrity gossip
-- Sports news
-- Opinion pieces without data
+Please avoid:
+- Celebrity news
+- Sports
+- Opinion pieces
 ```
 
-## Deployment
+### 2. Add RSS Feeds
 
-### Docker Compose (Recommended)
+Go to **Settings → RSS Feeds** and add your favorite news sources:
 
-The easiest way to deploy Curio:
+- Paste any RSS feed URL
+- Assign it to a category
+- Curio will start fetching articles
 
-```bash
-docker-compose up -d
-```
+**Popular feeds to get started:**
 
-### Unraid
+- Hacker News: `https://news.ycombinator.com/rss`
+- TechCrunch: `https://techcrunch.com/feed/`
+- Ars Technica: `https://feeds.arstechnica.com/arstechnica/index`
+- The Verge: `https://www.theverge.com/rss/index.xml`
 
-1. Go to the **Docker** tab
-2. Click **Add Container**
-3. Use the template or configure manually:
-   - Repository: `your-registry/curio`
-   - Network Type: `bridge`
-   - Add port mappings: `3000` and `8000`
-   - Add volume for PostgreSQL data
-   - Add environment variables from `.env.example`
+### 3. Create Categories
 
-### Home Assistant Add-on
+Go to **Settings → Categories** to organize your feeds:
 
-Create `config.json` for Home Assistant:
+- Create categories like "Technology", "Science", "Business"
+- Assign feeds to categories
+- Browse articles by category in the navigation
 
-```json
-{
-  "name": "Curio News Aggregator",
-  "version": "1.0.0",
-  "slug": "curio",
-  "description": "AI-powered personalized news aggregator",
-  "arch": ["amd64", "armv7", "aarch64"],
-  "startup": "application",
-  "boot": "auto",
-  "ports": {
-    "3000/tcp": 3000,
-    "8000/tcp": 8000
-  },
-  "environment": {
-    "OPENAI_API_KEY": ""
-  }
-}
-```
+### 4. Generate Your First Edition
 
-## API Documentation
+- Click **Refresh** in the header to fetch articles
+- Go to **Settings → AI Settings** and click **Process New Articles**
+- Return to the home page to see your personalized newspaper!
 
-Once running, visit http://localhost:8000/docs for interactive API documentation (Swagger UI).
+## ⚙️ Configuration
 
-### Key Endpoints
+### Environment Variables
 
-- `GET /api/articles/` - Get articles with filters
-- `POST /api/feeds/` - Add new RSS feed
-- `GET /api/categories/` - Get all categories
-- `POST /api/actions/fetch-feeds` - Manually trigger feed fetch
-- `POST /api/actions/process-articles` - Process articles with AI
-- `GET /api/settings/` - Get user settings
+| Variable             | Required | Default               | Description                                 |
+| -------------------- | -------- | --------------------- | ------------------------------------------- |
+| `OPENAI_API_KEY`     | Yes      | -                     | Your OpenAI API key                         |
+| `SECRET_KEY`         | Yes      | -                     | Random string for JWT tokens (min 32 chars) |
+| `POSTGRES_PASSWORD`  | Yes      | -                     | Database password                           |
+| `DEV_MODE`           | No       | `false`               | Set to `true` for single-user mode          |
+| `LLM_MODEL`          | No       | `gpt-4-turbo-preview` | OpenAI model to use                         |
+| `RSS_FETCH_INTERVAL` | No       | `60`                  | Minutes between automatic feed updates      |
 
-## Troubleshooting
+### Customizing Your Newspaper
 
-### Articles not appearing
+Go to **Settings → Appearance** to:
 
-1. Check that feeds are added in Settings
-2. Click the Refresh button to fetch feeds
-3. Go to Settings > AI Settings and click "Process New Articles"
-4. Check backend logs: `docker-compose logs backend`
+- Set a custom newspaper title
+- Preview how your header will look
 
-### AI processing not working
+## ❓ Troubleshooting
 
-1. Verify `OPENAI_API_KEY` is set correctly in `.env`
-2. Check you have API credits available
-3. Verify your AI preferences are configured in Settings
-4. Check backend logs for API errors
+### Articles not appearing?
 
-### Database issues
+1. Make sure you've added RSS feeds in Settings
+2. Click **Refresh** in the header to fetch new articles
+3. Go to **AI Settings** and click **Process New Articles**
 
-```bash
-# Reset database
-docker-compose down -v
-docker-compose up -d
+### AI features not working?
 
-# Run migrations manually
-docker-compose exec backend alembic upgrade head
-```
+1. Verify your `OPENAI_API_KEY` is set correctly
+2. Check you have available credits at [OpenAI Usage](https://platform.openai.com/usage)
+3. Make sure you've configured your interests in AI Settings
 
-## Testing
+### Container won't start?
 
-Curio includes comprehensive test suites for both backend and frontend:
+1. Ensure all required environment variables are set
+2. Check that port 8080 isn't in use by another application
+3. Verify volume permissions for database storage
 
-### Quick Start
+## 💰 Cost Considerations
 
-```bash
-# Run all tests
-make test
+Curio uses OpenAI's API for AI features. Typical costs:
 
-# Run backend tests only
-make test-backend
+- **Initial setup:** ~$0.10-0.50 to process your first batch of articles
+- **Daily usage:** ~$0.05-0.20 depending on article volume
+- **Tip:** Use `gpt-4o-mini` model for lower costs (set `LLM_MODEL=gpt-4o-mini`)
 
-# Run frontend tests only
-make test-frontend
+Monitor your usage at [OpenAI Platform](https://platform.openai.com/usage).
 
-# Generate coverage reports
-make test-coverage
+## 🤝 Contributing
 
-# Or use the convenience script
-./run-tests.sh           # Run all tests
-./run-tests.sh backend   # Backend only
-./run-tests.sh frontend  # Frontend only
-./run-tests.sh coverage  # With coverage
-```
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
 
-### Test Coverage
+## 📄 License
 
-- **Backend**: Unit tests, integration tests, API endpoint tests
-- **Frontend**: Hook tests, component tests, utility tests
-- **CI/CD**: Automated testing via GitHub Actions
+MIT License - see [LICENSE](LICENSE) for details.
 
-For detailed testing documentation, see [TESTING.md](TESTING.md) and [TESTS_SUMMARY.md](TESTS_SUMMARY.md).
+## 🙏 Acknowledgments
 
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-MIT License - see LICENSE file for details
-
-## Acknowledgments
-
-- Inspired by classic newspaper design
-- Built with modern web technologies
-- Powered by OpenAI for content curation
+- Inspired by the timeless design of classic newspapers
+- AI curation powered by OpenAI
 
 ---
 
-**Note**: This project requires an OpenAI API key. API usage will incur costs based on your usage. Monitor your API usage at https://platform.openai.com/usage
+<div align="center">
+
+**Made with ☕ for news lovers everywhere**
+
+[Report Bug](https://github.com/CyberDNS/curio/issues) · [Request Feature](https://github.com/CyberDNS/curio/issues)
+
+</div>

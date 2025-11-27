@@ -1,6 +1,6 @@
 import { RefreshCw } from "lucide-react";
 import type { Article } from "../../types";
-import ArticleListCard from "./ArticleListCard";
+import { ArticleListItem, ArticleList, COMPACT_CONFIG } from "./index";
 
 interface RelatedArticlesDialogProps {
   isOpen: boolean;
@@ -67,9 +67,9 @@ export default function RelatedArticlesDialog({
               No related articles found
             </div>
           ) : (
-            <div className="space-y-4">
+            <ArticleList>
               {relatedArticles.map((relatedArticle) => (
-                <ArticleListCard
+                <ArticleListItem
                   key={relatedArticle.id}
                   article={relatedArticle}
                   onArticleClick={handleArticleClick}
@@ -78,9 +78,10 @@ export default function RelatedArticlesDialog({
                       ? getCategoryName(relatedArticle.category_id)
                       : undefined
                   }
+                  config={COMPACT_CONFIG}
                 />
               ))}
-            </div>
+            </ArticleList>
           )}
         </div>
       </div>
