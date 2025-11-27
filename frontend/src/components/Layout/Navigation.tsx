@@ -60,18 +60,51 @@ export default function Navigation() {
   // Check if navigation would overflow
   const checkOverflow = useCallback(() => {
     if (measureRef.current && navRef.current) {
-      const containerWidth = navRef.current.parentElement?.clientWidth || 0;
+      // Get the actual available width of the nav container
+      const containerWidth = navRef.current.clientWidth;
+      // Measure the content width from the hidden measurement element
       const contentWidth = measureRef.current.scrollWidth;
-      setUseDropdown(contentWidth > containerWidth);
+      // Only switch to dropdown when content actually exceeds container (no buffer needed)
+      const shouldUseDropdown = contentWidth > containerWidth;
+      setUseDropdown(shouldUseDropdown);
     }
   }, []);
 
   // Check overflow on mount, resize, and when categories change
   useEffect(() => {
-    checkOverflow();
+    // Use requestAnimationFrame to ensure layout is complete before measuring
+    const rafId = requestAnimationFrame(() => {
+      checkOverflow();
+    });
+
+    // Also check after a short delay to handle font loading
+    const timeoutId = setTimeout(checkOverflow, 100);
+
     window.addEventListener("resize", checkOverflow);
-    return () => window.removeEventListener("resize", checkOverflow);
+
+    // Use ResizeObserver for more reliable container size tracking
+    let resizeObserver: ResizeObserver | null = null;
+    if (navRef.current) {
+      resizeObserver = new ResizeObserver(() => {
+        checkOverflow();
+      });
+      resizeObserver.observe(navRef.current);
+    }
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      clearTimeout(timeoutId);
+      window.removeEventListener("resize", checkOverflow);
+      resizeObserver?.disconnect();
+    };
   }, [checkOverflow, categories]);
+
+  // Re-check when fonts are loaded
+  useEffect(() => {
+    if (document.fonts?.ready) {
+      document.fonts.ready.then(checkOverflow);
+    }
+  }, [checkOverflow]);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -99,10 +132,11 @@ export default function Navigation() {
   return (
     <nav className="bg-newspaper-900 text-white sticky top-0 z-10 shadow-lg">
       <div className="container mx-auto px-4">
-        {/* Hidden measure element to calculate full width */}
+        {/* Hidden measure element to calculate full width - must match nav ul structure */}
         <div
           ref={measureRef}
-          className="absolute invisible h-0 overflow-hidden flex"
+          className="absolute left-0 invisible h-0 overflow-hidden whitespace-nowrap"
+          style={{ display: "flex" }}
           aria-hidden="true"
         >
           <span className="px-4 py-3 text-sm font-semibold uppercase tracking-wider whitespace-nowrap flex items-center gap-2">
