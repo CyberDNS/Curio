@@ -83,15 +83,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       checkAuth();
     };
 
+    // Listen for auth expired events (from API interceptor when refresh fails)
+    const handleAuthExpired = (_e: Event) => {
+      console.log("Auth expired event received - session ended");
+      setUser(null);
+      setToken(null);
+      navigate("/login");
+    };
+
     window.addEventListener("authUpdate", handleAuthUpdate as EventListener);
+    window.addEventListener("authExpired", handleAuthExpired as EventListener);
 
     return () => {
       window.removeEventListener(
         "authUpdate",
         handleAuthUpdate as EventListener
       );
+      window.removeEventListener(
+        "authExpired",
+        handleAuthExpired as EventListener
+      );
     };
-  }, [checkAuth]);
+  }, [checkAuth, navigate]);
 
   const login = () => {
     // Redirect to backend OAuth login endpoint
