@@ -800,9 +800,17 @@ export default function AllArticlesPage() {
               className="bg-white border border-newspaper-300 p-4"
             >
               <div className="space-y-2">
-                {/* Title */}
-                <div className="font-semibold text-sm">
-                  {article.llm_title || article.title}
+                {/* Checkbox and Title row */}
+                <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={selectedForComparison.has(article.id)}
+                    onChange={() => toggleArticleSelection(article.id)}
+                    className="w-5 h-5 cursor-pointer mt-0.5 flex-shrink-0"
+                  />
+                  <div className="font-semibold text-sm flex-1">
+                    {article.llm_title || article.title}
+                  </div>
                 </div>
 
                 {/* Source */}
