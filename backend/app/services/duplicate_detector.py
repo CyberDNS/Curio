@@ -1,5 +1,11 @@
 """
 Duplicate detection service using OpenAI embeddings and cosine similarity.
+
+Embeddings are generated from the combination of article title and LLM summary,
+providing better semantic matching than title-only comparison. This helps catch:
+- Same story with different headlines
+- Rewrites and paraphrased versions
+- Content from multiple sources covering the same event
 """
 
 import logging
@@ -24,12 +30,40 @@ class DuplicateDetector:
         self.embedding_model = settings.EMBEDDING_MODEL
         self.similarity_threshold = settings.DUPLICATE_SIMILARITY_THRESHOLD
 
+    def _build_embedding_text(self, article: Article) -> str:
+        """
+        Build the text to be embedded from article title and summary.
+
+        Using both title and summary provides much better duplicate detection:
+        - Title alone can miss duplicates with different headlines
+        - Summary captures the essence of the article content
+        - Combined text gives a richer semantic representation
+
+        Args:
+            article: Article to build embedding text for
+
+        Returns:
+            Combined text for embedding generation
+        """
+        parts = [article.title]
+
+        # Prefer LLM summary (more concise and semantic), fall back to original summary
+        summary = article.llm_summary or article.summary
+        if summary:
+            # Truncate summary to avoid overly long embeddings (keep it focused)
+            max_summary_length = 500
+            if len(summary) > max_summary_length:
+                summary = summary[:max_summary_length] + "..."
+            parts.append(summary)
+
+        return ". ".join(parts)
+
     def generate_embedding(self, text: str) -> Optional[List[float]]:
         """
         Generate embedding for a text using OpenAI API.
 
         Args:
-            text: Text to generate embedding for (typically article title)
+            text: Text to generate embedding for (title + summary)
 
         Returns:
             List of floats representing the embedding vector, or None on error
@@ -40,7 +74,7 @@ class DuplicateDetector:
             )
             embedding = response.data[0].embedding
             logger.info(
-                f"Generated embedding for text: '{text[:50]}...' "
+                f"Generated embedding for text: '{text[:80]}...' "
                 f"(model: {self.embedding_model}, dims: {len(embedding)})"
             )
             return embedding
@@ -52,7 +86,10 @@ class DuplicateDetector:
         self, article: Article, days_back: int = 1
     ) -> List[Tuple[Article, float]]:
         """
-        Find articles similar to the given article based on title embedding.
+        Find articles similar to the given article based on content embedding.
+
+        The embedding is generated from the article's title and LLM summary,
+        providing better semantic matching than title-only comparison.
 
         Args:
             article: Article to find duplicates for
@@ -193,7 +230,7 @@ class DuplicateDetector:
         """
         Process an article to detect and mark duplicates.
 
-        1. Generates embedding if needed
+        1. Generates embedding from title + summary if needed
         2. Finds similar articles
         3. Marks as duplicate if match found
 
@@ -204,15 +241,22 @@ class DuplicateDetector:
             The original article if this is a duplicate, None otherwise
         """
         # Generate embedding if not present
+        # Note: We use title_embedding field but it now stores title+summary embedding
         if article.title_embedding is None or (
             isinstance(article.title_embedding, str)
             and not article.title_embedding.strip()
         ):
-            embedding = self.generate_embedding(article.title)
+            # Build combined text from title and summary for better duplicate detection
+            embedding_text = self._build_embedding_text(article)
+            embedding = self.generate_embedding(embedding_text)
             if embedding:
                 # Store as JSON string
                 article.title_embedding = json.dumps(embedding)
                 self.db.commit()
+                logger.debug(
+                    f"Article {article.id}: Generated embedding from title+summary "
+                    f"({len(embedding_text)} chars)"
+                )
             else:
                 logger.error(f"Could not generate embedding for article {article.id}")
                 return None

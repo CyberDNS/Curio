@@ -57,6 +57,8 @@ class Article(Base):
         Integer, ForeignKey("articles.id", ondelete="SET NULL"), nullable=True
     )  # Points to the best/original article
     # Store embeddings as JSON text - compatible with all PostgreSQL installations
+    # Note: Despite the name, this field stores embeddings generated from title+summary
+    # for better duplicate detection accuracy
     title_embedding = Column(
         Text, nullable=True
     )  # OpenAI embedding for similarity (JSON array)
