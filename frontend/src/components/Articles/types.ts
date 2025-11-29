@@ -19,6 +19,7 @@ export interface ArticleDisplayConfig {
   showActions?: {
     read?: boolean;
     save?: boolean;
+    share?: boolean;
     downvote?: boolean;
     reprocess?: boolean;
     related?: boolean;

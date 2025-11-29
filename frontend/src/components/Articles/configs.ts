@@ -20,6 +20,7 @@ export const READER_CONFIG: ArticleDisplayConfig = {
   showActions: {
     read: true,
     save: true,
+    share: true,
     downvote: true,
     reprocess: true,
     related: true,
@@ -60,6 +61,7 @@ export const ADMIN_CONFIG: ArticleDisplayConfig = {
   showActions: {
     read: true,
     save: false,
+    share: false,
     downvote: false,
     reprocess: false,
     related: false,
@@ -86,6 +88,7 @@ export const COMPACT_CONFIG: ArticleDisplayConfig = {
   showActions: {
     read: true,
     save: false,
+    share: true,
     downvote: false,
     reprocess: false,
     related: false,
