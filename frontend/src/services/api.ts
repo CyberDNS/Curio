@@ -131,6 +131,13 @@ export const getArticle = async (id: number): Promise<Article> => {
   return data;
 };
 
+export const getArticlesBatch = async (
+  articleIds: number[]
+): Promise<Article[]> => {
+  const { data } = await api.post("/articles/batch", articleIds);
+  return data;
+};
+
 export const updateArticle = async (
   id: number,
   update: Partial<Article>

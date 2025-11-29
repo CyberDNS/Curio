@@ -28,8 +28,8 @@ export interface Article {
   // Original RSS data
   title: string;
   link: string;
-  description: string | null;
-  content: string | null;
+  description?: string | null; // Not returned in list views
+  content?: string | null; // Not returned in list views
   author: string | null;
   published_date: string | null;
   image_url: string | null;
@@ -37,14 +37,14 @@ export interface Article {
   llm_title: string | null;
   llm_subtitle: string | null;
   llm_summary: string | null;
-  llm_category_suggestion: string | null;
+  llm_category_suggestion?: string | null; // Not returned in list views
   image_urls: string[] | null;
   // Analysis
   summary: string | null;
   relevance_score: number; // >= 0.6 means "recommended"
   // User feedback and score adjustment
   user_vote: number; // 0 = neutral, -1 = downvote
-  vote_updated_at: string | null;
+  vote_updated_at?: string | null; // Not returned in list views
   adjusted_relevance_score: number | null; // Final score after downvote adjustment
   score_adjustment_reason: string | null; // Brief explanation for UI
   // Feed source information
@@ -52,9 +52,9 @@ export interface Article {
   // Duplicate detection
   is_duplicate: boolean;
   duplicate_of_id: number | null;
-  title_embedding: string | null; // JSON string of embedding vector
+  title_embedding?: string | null; // JSON string of embedding vector - only in full article view
   // Newspaper tracking
-  newspaper_appearances: Record<string, string> | null; // { "2025-11-22": "today" | "technology" | ... }
+  newspaper_appearances?: Record<string, string> | null; // { "2025-11-22": "today" | "technology" | ... } - only in full article view
   // Metadata
   is_read: boolean; // false = "NEW" article, true = read
   created_at: string;

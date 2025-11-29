@@ -67,3 +67,52 @@ class Article(ArticleBase):
 
     class Config:
         from_attributes = True
+
+
+class ArticleList(BaseModel):
+    """
+    Lightweight article schema for list views.
+    Excludes heavy fields like content, description, and title_embedding
+    to improve API response times when fetching many articles.
+    """
+
+    id: int
+    feed_id: Optional[int] = None
+    category_id: Optional[int] = None
+
+    # Essential display fields
+    title: str
+    link: str
+    author: Optional[str] = None
+    published_date: Optional[datetime] = None
+    image_url: Optional[str] = None
+    image_urls: Optional[List[str]] = None
+
+    # LLM-enhanced fields (used for display)
+    llm_title: Optional[str] = None
+    llm_subtitle: Optional[str] = None
+    llm_summary: Optional[str] = None
+
+    # Analysis fields
+    summary: Optional[str] = None
+    relevance_score: float = 0.0
+
+    # User feedback
+    user_vote: int = 0
+    adjusted_relevance_score: Optional[float] = None
+    score_adjustment_reason: Optional[str] = None
+
+    # Feed source information
+    feed_source_title: Optional[str] = None
+
+    # Duplicate detection (without embedding)
+    is_duplicate: bool = False
+    duplicate_of_id: Optional[int] = None
+
+    # Metadata
+    is_read: bool = False
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True

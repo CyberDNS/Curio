@@ -8,7 +8,11 @@ from app.core.database import get_db
 from app.core.auth import get_current_user
 from app.models.article import Article
 from app.models.user import User
-from app.schemas.article import Article as ArticleSchema, ArticleUpdate
+from app.schemas.article import (
+    Article as ArticleSchema,
+    ArticleList as ArticleListSchema,
+    ArticleUpdate,
+)
 from app.api.validation import (
     validate_positive_int,
     validate_days_back,
@@ -22,7 +26,7 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-@router.get("/", response_model=List[ArticleSchema])
+@router.get("/", response_model=List[ArticleListSchema])
 def get_articles(
     skip: int = SkipParam,
     limit: int = LimitParam,
@@ -201,6 +205,39 @@ def get_unread_counts(
             result[category_slug] = count
 
     return result
+
+
+@router.post("/batch", response_model=List[ArticleSchema])
+def get_articles_batch(
+    article_ids: List[int],
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get full article details for a batch of article IDs.
+
+    This endpoint returns the complete Article schema including embeddings,
+    content, and other heavy fields. Use this for detailed views or comparisons.
+    Limited to 50 articles per request.
+    """
+    if len(article_ids) > 50:
+        raise HTTPException(
+            status_code=400, detail="Maximum 50 articles per batch request"
+        )
+
+    if not article_ids:
+        return []
+
+    articles = (
+        db.query(Article)
+        .options(joinedload(Article.feed))
+        .filter(
+            Article.id.in_(article_ids),
+            Article.user_id == current_user.id,
+        )
+        .all()
+    )
+
+    return articles
 
 
 @router.get("/{article_id}", response_model=ArticleSchema)

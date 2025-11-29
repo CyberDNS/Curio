@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getArticles,
+  getArticlesBatch,
   reprocessArticle,
   getCategories,
   getFeeds,
@@ -66,7 +67,7 @@ export default function AllArticlesPage() {
   const { data: allArticles = [], isLoading } = useQuery({
     queryKey: ["articles", "all", daysBack, selectedCategoryId, selectedFeedId],
     queryFn: () => {
-      const params: any = {
+      const params: Record<string, unknown> = {
         limit: 5000,
         days_back: daysBack,
       };
@@ -77,6 +78,14 @@ export default function AllArticlesPage() {
     },
     refetchInterval: 30000,
   });
+
+  // Fetch full article details (including embeddings) for comparison
+  const { data: comparisonArticles = [], isLoading: loadingComparison } =
+    useQuery({
+      queryKey: ["articles", "batch", Array.from(selectedForComparison)],
+      queryFn: () => getArticlesBatch(Array.from(selectedForComparison)),
+      enabled: showCompareDialog && selectedForComparison.size > 0,
+    });
 
   const { data: categories = [] } = useQuery({
     queryKey: ["categories"],
@@ -199,8 +208,9 @@ export default function AllArticlesPage() {
     }
   };
 
+  // Use batch-fetched articles for comparison (includes embeddings)
   const getComparisonArticles = () => {
-    return allArticles.filter((a) => selectedForComparison.has(a.id));
+    return comparisonArticles;
   };
 
   const cosineSimilarity = (emb1: number[], emb2: number[]): number => {
@@ -1076,185 +1086,210 @@ export default function AllArticlesPage() {
             </div>
 
             <div className="p-6 space-y-6">
-              {/* Comparison Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {getComparisonArticles().map((article) => {
-                  const hasAdjustment =
-                    article.adjusted_relevance_score !== null &&
-                    article.adjusted_relevance_score !==
-                      article.relevance_score;
-                  const displayScore = hasAdjustment
-                    ? article.adjusted_relevance_score!
-                    : article.relevance_score;
-                  const embedding = article.title_embedding
-                    ? JSON.parse(article.title_embedding)
-                    : null;
-
-                  return (
-                    <div
-                      key={article.id}
-                      className="border-2 border-newspaper-300 p-4 bg-newspaper-50"
-                    >
-                      <h3 className="newspaper-heading text-lg mb-3 border-b border-newspaper-400 pb-2">
-                        {article.llm_title || article.title}
-                      </h3>
-
-                      <div className="space-y-2 text-sm">
-                        <div>
-                          <span className="font-semibold">ID:</span>{" "}
-                          {article.id}
-                        </div>
-                        <div>
-                          <span className="font-semibold">Source:</span>{" "}
-                          {article.feed_source_title || "Unknown"}
-                        </div>
-                        <div>
-                          <span className="font-semibold">Category:</span>{" "}
-                          {getCategoryName(article.category_id) || "None"}
-                        </div>
-                        <div>
-                          <span className="font-semibold">Original Score:</span>{" "}
-                          <span
-                            className={
-                              hasAdjustment ? "line-through text-gray-400" : ""
-                            }
-                          >
-                            {article.relevance_score?.toFixed(3) || "N/A"}
-                          </span>
-                        </div>
-                        {hasAdjustment && (
-                          <div>
-                            <span className="font-semibold">
-                              Adjusted Score:
-                            </span>{" "}
-                            <span className="text-orange-600 font-semibold">
-                              {displayScore?.toFixed(3)}
-                            </span>
-                          </div>
-                        )}
-                        <div>
-                          <span className="font-semibold">User Vote:</span>{" "}
-                          {article.user_vote === -1 ? (
-                            <span className="text-red-600 font-semibold">
-                              Downvoted
-                            </span>
-                          ) : (
-                            <span className="text-gray-500">Neutral</span>
-                          )}
-                        </div>
-                        <div>
-                          <span className="font-semibold">Is Duplicate:</span>{" "}
-                          {article.is_duplicate ? "Yes" : "No"}
-                        </div>
-                        <div>
-                          <span className="font-semibold">Has Embedding:</span>{" "}
-                          {embedding ? `Yes (${embedding.length}D)` : "No"}
-                        </div>
-                        {article.score_adjustment_reason && (
-                          <div className="mt-2 pt-2 border-t border-newspaper-300">
-                            <button
-                              onClick={() => {
-                                setExplanationArticleId(article.id);
-                                setExplanationArticleTitle(
-                                  article.llm_title || article.title
-                                );
-                                setShowExplanationDialog(true);
-                              }}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-lg transition-colors text-xs font-medium text-orange-800"
-                            >
-                              <Info className="w-3.5 h-3.5" />
-                              View Score Adjustment Details
-                            </button>
-                          </div>
-                        )}
-                      </div>
-
-                      <a
-                        href={article.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 mt-3 text-xs font-semibold text-blue-600 hover:text-blue-800"
-                      >
-                        <ExternalLink className="w-3 h-3" />
-                        View Article
-                      </a>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Similarity Matrix */}
-              {getComparisonArticles().every((a) => a.title_embedding) && (
-                <div className="mt-6 border-t-2 border-newspaper-900 pt-6">
-                  <h3 className="newspaper-heading text-xl mb-4">
-                    Embedding Similarity Matrix
-                  </h3>
-                  <div className="overflow-x-auto">
-                    <table className="w-full border border-newspaper-300 text-sm">
-                      <thead className="bg-newspaper-100">
-                        <tr>
-                          <th className="border border-newspaper-300 p-2 text-left">
-                            Article
-                          </th>
-                          {getComparisonArticles().map((article) => (
-                            <th
-                              key={article.id}
-                              className="border border-newspaper-300 p-2 text-center"
-                            >
-                              #{article.id}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {getComparisonArticles().map((article1) => {
-                          const emb1 = JSON.parse(article1.title_embedding!);
-                          return (
-                            <tr key={article1.id}>
-                              <td className="border border-newspaper-300 p-2 font-semibold bg-newspaper-50">
-                                #{article1.id}
-                              </td>
-                              {getComparisonArticles().map((article2) => {
-                                const emb2 = JSON.parse(
-                                  article2.title_embedding!
-                                );
-                                const similarity = cosineSimilarity(emb1, emb2);
-                                const isHigh =
-                                  similarity > 0.8 &&
-                                  article1.id !== article2.id;
-                                const isSelf = article1.id === article2.id;
-
-                                return (
-                                  <td
-                                    key={article2.id}
-                                    className={`border border-newspaper-300 p-2 text-center ${
-                                      isSelf
-                                        ? "bg-gray-200 font-semibold"
-                                        : isHigh
-                                        ? "bg-red-100 font-semibold"
-                                        : similarity > 0.6
-                                        ? "bg-yellow-100"
-                                        : ""
-                                    }`}
-                                  >
-                                    {similarity.toFixed(3)}
-                                  </td>
-                                );
-                              })}
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                    <p className="text-xs text-newspaper-600 mt-2">
-                      <span className="font-semibold">Legend:</span>{" "}
-                      <span className="inline-block w-4 h-4 bg-red-100 border border-newspaper-300 align-middle"></span>{" "}
-                      High similarity ({">"} 0.8) •{" "}
-                      <span className="inline-block w-4 h-4 bg-yellow-100 border border-newspaper-300 align-middle"></span>{" "}
-                      Medium similarity ({">"} 0.6)
-                    </p>
-                  </div>
+              {/* Loading state for comparison data */}
+              {loadingComparison ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-newspaper-600" />
+                  <span className="ml-3 text-newspaper-600">
+                    Loading article details...
+                  </span>
                 </div>
+              ) : (
+                <>
+                  {/* Comparison Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {getComparisonArticles().map((article) => {
+                      const hasAdjustment =
+                        article.adjusted_relevance_score !== null &&
+                        article.adjusted_relevance_score !==
+                          article.relevance_score;
+                      const displayScore = hasAdjustment
+                        ? article.adjusted_relevance_score!
+                        : article.relevance_score;
+                      const embedding = article.title_embedding
+                        ? JSON.parse(article.title_embedding)
+                        : null;
+
+                      return (
+                        <div
+                          key={article.id}
+                          className="border-2 border-newspaper-300 p-4 bg-newspaper-50"
+                        >
+                          <h3 className="newspaper-heading text-lg mb-3 border-b border-newspaper-400 pb-2">
+                            {article.llm_title || article.title}
+                          </h3>
+
+                          <div className="space-y-2 text-sm">
+                            <div>
+                              <span className="font-semibold">ID:</span>{" "}
+                              {article.id}
+                            </div>
+                            <div>
+                              <span className="font-semibold">Source:</span>{" "}
+                              {article.feed_source_title || "Unknown"}
+                            </div>
+                            <div>
+                              <span className="font-semibold">Category:</span>{" "}
+                              {getCategoryName(article.category_id) || "None"}
+                            </div>
+                            <div>
+                              <span className="font-semibold">
+                                Original Score:
+                              </span>{" "}
+                              <span
+                                className={
+                                  hasAdjustment
+                                    ? "line-through text-gray-400"
+                                    : ""
+                                }
+                              >
+                                {article.relevance_score?.toFixed(3) || "N/A"}
+                              </span>
+                            </div>
+                            {hasAdjustment && (
+                              <div>
+                                <span className="font-semibold">
+                                  Adjusted Score:
+                                </span>{" "}
+                                <span className="text-orange-600 font-semibold">
+                                  {displayScore?.toFixed(3)}
+                                </span>
+                              </div>
+                            )}
+                            <div>
+                              <span className="font-semibold">User Vote:</span>{" "}
+                              {article.user_vote === -1 ? (
+                                <span className="text-red-600 font-semibold">
+                                  Downvoted
+                                </span>
+                              ) : (
+                                <span className="text-gray-500">Neutral</span>
+                              )}
+                            </div>
+                            <div>
+                              <span className="font-semibold">
+                                Is Duplicate:
+                              </span>{" "}
+                              {article.is_duplicate ? "Yes" : "No"}
+                            </div>
+                            <div>
+                              <span className="font-semibold">
+                                Has Embedding:
+                              </span>{" "}
+                              {embedding ? `Yes (${embedding.length}D)` : "No"}
+                            </div>
+                            {article.score_adjustment_reason && (
+                              <div className="mt-2 pt-2 border-t border-newspaper-300">
+                                <button
+                                  onClick={() => {
+                                    setExplanationArticleId(article.id);
+                                    setExplanationArticleTitle(
+                                      article.llm_title || article.title
+                                    );
+                                    setShowExplanationDialog(true);
+                                  }}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-lg transition-colors text-xs font-medium text-orange-800"
+                                >
+                                  <Info className="w-3.5 h-3.5" />
+                                  View Score Adjustment Details
+                                </button>
+                              </div>
+                            )}
+                          </div>
+
+                          <a
+                            href={article.link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 mt-3 text-xs font-semibold text-blue-600 hover:text-blue-800"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            View Article
+                          </a>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Similarity Matrix */}
+                  {getComparisonArticles().every((a) => a.title_embedding) && (
+                    <div className="mt-6 border-t-2 border-newspaper-900 pt-6">
+                      <h3 className="newspaper-heading text-xl mb-4">
+                        Embedding Similarity Matrix
+                      </h3>
+                      <div className="overflow-x-auto">
+                        <table className="w-full border border-newspaper-300 text-sm">
+                          <thead className="bg-newspaper-100">
+                            <tr>
+                              <th className="border border-newspaper-300 p-2 text-left">
+                                Article
+                              </th>
+                              {getComparisonArticles().map((article) => (
+                                <th
+                                  key={article.id}
+                                  className="border border-newspaper-300 p-2 text-center"
+                                >
+                                  #{article.id}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {getComparisonArticles().map((article1) => {
+                              const emb1 = JSON.parse(
+                                article1.title_embedding!
+                              );
+                              return (
+                                <tr key={article1.id}>
+                                  <td className="border border-newspaper-300 p-2 font-semibold bg-newspaper-50">
+                                    #{article1.id}
+                                  </td>
+                                  {getComparisonArticles().map((article2) => {
+                                    const emb2 = JSON.parse(
+                                      article2.title_embedding!
+                                    );
+                                    const similarity = cosineSimilarity(
+                                      emb1,
+                                      emb2
+                                    );
+                                    const isHigh =
+                                      similarity > 0.8 &&
+                                      article1.id !== article2.id;
+                                    const isSelf = article1.id === article2.id;
+
+                                    return (
+                                      <td
+                                        key={article2.id}
+                                        className={`border border-newspaper-300 p-2 text-center ${
+                                          isSelf
+                                            ? "bg-gray-200 font-semibold"
+                                            : isHigh
+                                            ? "bg-red-100 font-semibold"
+                                            : similarity > 0.6
+                                            ? "bg-yellow-100"
+                                            : ""
+                                        }`}
+                                      >
+                                        {similarity.toFixed(3)}
+                                      </td>
+                                    );
+                                  })}
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                        <p className="text-xs text-newspaper-600 mt-2">
+                          <span className="font-semibold">Legend:</span>{" "}
+                          <span className="inline-block w-4 h-4 bg-red-100 border border-newspaper-300 align-middle"></span>{" "}
+                          High similarity ({">"} 0.8) •{" "}
+                          <span className="inline-block w-4 h-4 bg-yellow-100 border border-newspaper-300 align-middle"></span>{" "}
+                          Medium similarity ({">"} 0.6)
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
 
               {/* Close Button */}
