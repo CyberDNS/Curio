@@ -194,7 +194,7 @@ export default function Navigation() {
     }`;
 
   return (
-    <nav className="bg-newspaper-900 text-white sticky top-0 z-10 shadow-lg">
+    <nav className="bg-newspaper-900 text-white sticky top-0 z-40 shadow-lg">
       <div className="container mx-auto px-4">
         {/* Hidden measure element to calculate widths */}
         <div
@@ -206,7 +206,7 @@ export default function Navigation() {
           {/* Today */}
           <span className="px-4 py-3 text-sm font-semibold uppercase tracking-wider whitespace-nowrap flex items-center gap-2">
             <Home className="w-4 h-4" />
-            Today
+            <span className="hidden sm:inline">Today</span>
           </span>
           {/* Categories */}
           {categories.map((category) => (
@@ -220,12 +220,12 @@ export default function Navigation() {
           {/* All */}
           <span className="px-4 py-3 text-sm font-semibold uppercase tracking-wider whitespace-nowrap flex items-center gap-2">
             <List className="w-4 h-4" />
-            All
+            <span className="hidden sm:inline">All</span>
           </span>
           {/* Saved */}
           <span className="px-4 py-3 text-sm font-semibold uppercase tracking-wider whitespace-nowrap flex items-center gap-2">
             <Bookmark className="w-4 h-4" />
-            Saved
+            <span className="hidden sm:inline">Saved</span>
           </span>
         </div>
 
@@ -234,7 +234,7 @@ export default function Navigation() {
           <li>
             <Link to="/" className={navLinkClass(isActive("/"))}>
               <Home className="w-4 h-4" />
-              Today
+              <span className="hidden sm:inline">Today</span>
               <UnreadDot count={unreadCounts.today || 0} />
             </Link>
           </li>
@@ -304,7 +304,7 @@ export default function Navigation() {
           <li>
             <Link to="/all" className={navLinkClass(isActive("/all"))}>
               <List className="w-4 h-4" />
-              All
+              <span className="hidden sm:inline">All</span>
             </Link>
           </li>
 
@@ -312,7 +312,7 @@ export default function Navigation() {
           <li>
             <Link to="/saved" className={navLinkClass(isActive("/saved"))}>
               <Bookmark className="w-4 h-4" />
-              Saved
+              <span className="hidden sm:inline">Saved</span>
             </Link>
           </li>
         </ul>
