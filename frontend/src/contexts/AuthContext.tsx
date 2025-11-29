@@ -46,26 +46,52 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Function to check and load auth state from cookie
   const checkAuth = React.useCallback(async () => {
     try {
-      console.log("Checking auth state...");
+      console.log("[Auth] Checking auth state...");
       const API_BASE = import.meta.env.VITE_API_URL || "/api";
-      const response = await fetch(`${API_BASE}/auth/me`, {
+
+      // First try to get user info
+      let response = await fetch(`${API_BASE}/auth/me`, {
         credentials: "include", // Include cookies
       });
 
-      console.log("Auth check response status:", response.status);
+      console.log("[Auth] Initial auth check response:", response.status);
+
+      // If 401, try to refresh the token first
+      if (response.status === 401) {
+        console.log("[Auth] Access token expired, attempting refresh...");
+        const refreshResponse = await fetch(`${API_BASE}/auth/refresh`, {
+          method: "POST",
+          credentials: "include",
+        });
+
+        console.log("[Auth] Refresh response:", refreshResponse.status);
+
+        if (refreshResponse.ok) {
+          // Retry getting user info after refresh
+          console.log("[Auth] Token refreshed, retrying auth check...");
+          response = await fetch(`${API_BASE}/auth/me`, {
+            credentials: "include",
+          });
+          console.log("[Auth] Retry auth check response:", response.status);
+        }
+      }
 
       if (response.ok) {
         const userData = await response.json();
-        console.log("User authenticated:", userData);
+        console.log("[Auth] User authenticated:", userData.email);
         setUser(userData);
         setToken("cookie"); // Token is in HttpOnly cookie, just set a placeholder
       } else {
-        console.log("User not authenticated");
+        console.log(
+          "[Auth] User not authenticated (status:",
+          response.status,
+          ")"
+        );
         setUser(null);
         setToken(null);
       }
     } catch (error) {
-      console.error("Failed to check auth:", error);
+      console.error("[Auth] Failed to check auth:", error);
       setUser(null);
       setToken(null);
     } finally {

@@ -302,12 +302,21 @@ async def refresh_access_token(request: Request, db: Session = Depends(get_db)):
     """
     from fastapi.responses import JSONResponse
 
+    logger.debug("Token refresh requested")
+
+    # Log all cookies for debugging (names only, not values)
+    cookie_names = list(request.cookies.keys())
+    logger.debug(f"Available cookies: {cookie_names}")
+
     # Get refresh token from cookie
     refresh_token = request.cookies.get("refresh_token")
     if not refresh_token:
+        logger.warning("Refresh token not found in cookies")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token not found"
         )
+
+    logger.debug(f"Refresh token found, length: {len(refresh_token)}")
 
     try:
         # Decode and validate refresh token
@@ -315,15 +324,18 @@ async def refresh_access_token(request: Request, db: Session = Depends(get_db)):
         user_id_str = payload.get("sub")
 
         if not user_id_str:
+            logger.warning("Refresh token missing 'sub' claim")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
             )
 
         user_id = int(user_id_str)
+        logger.debug(f"Refreshing token for user ID: {user_id}")
 
         # Verify user still exists and is active
         user = db.query(User).filter(User.id == user_id).first()
         if not user or not user.is_active:
+            logger.warning(f"User {user_id} not found or inactive during token refresh")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="User not found or inactive",
@@ -331,6 +343,7 @@ async def refresh_access_token(request: Request, db: Session = Depends(get_db)):
 
         # Create new access token (keep same refresh token)
         new_access_token = create_access_token(data={"sub": user_id})
+        logger.info(f"Access token refreshed successfully for user {user.email}")
 
         log_security_event(
             event_type="auth.token.refreshed",

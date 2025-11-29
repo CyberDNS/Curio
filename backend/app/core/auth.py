@@ -130,16 +130,27 @@ def decode_token(token: str, token_type: str = "access") -> dict:
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
+        # Log token expiration info for debugging
+        exp = payload.get("exp")
+        if exp:
+            exp_dt = datetime.fromtimestamp(exp, tz=timezone.utc)
+            now = datetime.now(timezone.utc)
+            remaining = exp_dt - now
+            logger.debug(
+                f"Token ({token_type}) valid. Expires at {exp_dt.isoformat()}, "
+                f"remaining: {remaining.total_seconds():.0f}s"
+            )
+
         return payload
     except jwt.ExpiredSignatureError:
-        logger.warning("Token expired")
+        logger.warning(f"Token ({token_type}) has expired")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token has expired",
             headers={"WWW-Authenticate": "Bearer"},
         )
     except JWTError as e:
-        logger.error(f"JWT decode error: {e}")
+        logger.error(f"JWT decode error for {token_type} token: {e}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",

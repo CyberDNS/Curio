@@ -52,16 +52,21 @@ api.interceptors.response.use(
 
     // If error is 401 and we haven't already tried to refresh
     if (error.response?.status === 401 && !originalRequest._retry) {
+      console.log(
+        `[Auth] 401 error on ${originalRequest.url}, attempting refresh...`
+      );
+
       // Don't try to refresh if we're already on auth endpoints
       if (
         originalRequest.url?.includes("/auth/refresh") ||
-        originalRequest.url?.includes("/auth/login") ||
-        originalRequest.url?.includes("/auth/me")
+        originalRequest.url?.includes("/auth/login")
       ) {
+        console.log("[Auth] Skipping refresh for auth endpoint");
         return Promise.reject(error);
       }
 
       if (isRefreshing) {
+        console.log("[Auth] Already refreshing, queueing request");
         // If already refreshing, queue this request
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
@@ -74,12 +79,14 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
+        console.log("[Auth] Attempting token refresh...");
         // Attempt to refresh the token
-        await axios.post(
+        const refreshResponse = await axios.post(
           `${API_BASE_URL}/auth/refresh`,
           {},
           { withCredentials: true }
         );
+        console.log("[Auth] Token refresh successful", refreshResponse.status);
 
         // Token refreshed successfully, process queued requests
         processQueue();
@@ -87,6 +94,7 @@ api.interceptors.response.use(
         // Retry the original request
         return api(originalRequest);
       } catch (refreshError) {
+        console.error("[Auth] Token refresh failed:", refreshError);
         // Refresh failed, process queue with error
         processQueue(refreshError);
 
