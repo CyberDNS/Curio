@@ -227,22 +227,28 @@ export default function Navigation() {
             <Bookmark className="w-4 h-4" />
             <span className="hidden sm:inline">Saved</span>
           </span>
+          {/* More button - fixed width for measurement */}
+          <span className="px-4 py-3 text-sm font-semibold uppercase tracking-wider whitespace-nowrap flex items-center gap-2">
+            <MoreHorizontal className="w-4 h-4" />
+            <span className="hidden sm:inline">More</span>
+          </span>
         </div>
 
         <ul ref={navRef} className="flex">
           {/* Today - always visible */}
-          <li>
+          <li className="flex-shrink-0">
             <Link to="/" className={navLinkClass(isActive("/"))}>
-              <Home className="w-4 h-4" />
+              <Home className="w-4 h-4 flex-shrink-0" />
               <span className="hidden sm:inline">Today</span>
               <UnreadDot count={unreadCounts.today || 0} />
             </Link>
           </li>
 
-          {/* Visible categories */}
+          {/* Visible categories - can shrink/truncate */}
           {visibleCategories.map((category) => (
             <li
               key={category.id}
+              className="min-w-0"
               ref={(el) => {
                 if (el) categoryRefs.current.set(category.id, el);
                 else categoryRefs.current.delete(category.id);
@@ -250,9 +256,11 @@ export default function Navigation() {
             >
               <Link
                 to={`/category/${category.slug}`}
-                className={navLinkClass(isActive(`/category/${category.slug}`))}
+                className={`${navLinkClass(
+                  isActive(`/category/${category.slug}`)
+                )} min-w-0`}
               >
-                {category.name}
+                <span className="truncate">{category.name}</span>
                 <UnreadDot count={unreadCounts[category.slug] || 0} />
               </Link>
             </li>
@@ -260,16 +268,15 @@ export default function Navigation() {
 
           {/* More dropdown for overflow categories */}
           {overflowCategories.length > 0 && (
-            <li className="relative" ref={moreMenuRef}>
+            <li className="relative flex-shrink-0" ref={moreMenuRef}>
               <button
                 onClick={() => setShowMoreMenu(!showMoreMenu)}
                 className={navLinkClass(!!activeOverflowCategory)}
               >
-                <MoreHorizontal className="w-4 h-4" />
-                <span>{activeOverflowCategory?.name || "More"}</span>
+                <span>More</span>
                 <UnreadDot count={overflowUnreadCount} />
                 <ChevronDown
-                  className={`w-3 h-3 transition-transform ${
+                  className={`w-3 h-3 transition-transform flex-shrink-0 ${
                     showMoreMenu ? "rotate-180" : ""
                   }`}
                 />
@@ -300,16 +307,19 @@ export default function Navigation() {
             </li>
           )}
 
-          {/* All - always visible */}
-          <li>
+          {/* Spacer to push All and Saved to the right */}
+          <li className="flex-grow"></li>
+
+          {/* All - always visible, pinned to right */}
+          <li className="flex-shrink-0">
             <Link to="/all" className={navLinkClass(isActive("/all"))}>
               <List className="w-4 h-4" />
               <span className="hidden sm:inline">All</span>
             </Link>
           </li>
 
-          {/* Saved - always visible */}
-          <li>
+          {/* Saved - always visible, pinned to right */}
+          <li className="flex-shrink-0">
             <Link to="/saved" className={navLinkClass(isActive("/saved"))}>
               <Bookmark className="w-4 h-4" />
               <span className="hidden sm:inline">Saved</span>
