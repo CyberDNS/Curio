@@ -244,11 +244,11 @@ export default function Navigation() {
             </Link>
           </li>
 
-          {/* Visible categories - can shrink/truncate */}
+          {/* Visible categories - shown in full or moved to More */}
           {visibleCategories.map((category) => (
             <li
               key={category.id}
-              className="min-w-0"
+              className="flex-shrink-0"
               ref={(el) => {
                 if (el) categoryRefs.current.set(category.id, el);
                 else categoryRefs.current.delete(category.id);
@@ -256,11 +256,9 @@ export default function Navigation() {
             >
               <Link
                 to={`/category/${category.slug}`}
-                className={`${navLinkClass(
-                  isActive(`/category/${category.slug}`)
-                )} min-w-0`}
+                className={navLinkClass(isActive(`/category/${category.slug}`))}
               >
-                <span className="truncate">{category.name}</span>
+                {category.name}
                 <UnreadDot count={unreadCounts[category.slug] || 0} />
               </Link>
             </li>
